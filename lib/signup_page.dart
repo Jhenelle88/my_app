@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_app/database_helper.dart';
@@ -19,6 +20,10 @@ class _SignupPageState extends State<SignupPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+  Timer? _passwordTimer;
+  Timer? _confirmPasswordTimer;
 
   @override
   void dispose() {
@@ -29,6 +34,8 @@ class _SignupPageState extends State<SignupPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _passwordTimer?.cancel();
+    _confirmPasswordTimer?.cancel();
     super.dispose();
   }
 
@@ -48,17 +55,47 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime now = DateTime.now();
+    final DateTime eighteenYearsAgo = DateTime(now.year - 18, now.month, now.day);
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: eighteenYearsAgo,
       firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      lastDate: eighteenYearsAgo,
     );
     if (picked != null) {
       setState(() {
         _birthDateController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
     }
+  }
+
+  void _togglePasswordVisibility() {
+    setState(() {
+      _isPasswordVisible = !_isPasswordVisible;
+      if (_isPasswordVisible) {
+        _passwordTimer?.cancel();
+        _passwordTimer = Timer(const Duration(seconds: 2), () {
+          setState(() {
+            _isPasswordVisible = false;
+          });
+        });
+      }
+    });
+  }
+
+  void _toggleConfirmPasswordVisibility() {
+    setState(() {
+      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+      if (_isConfirmPasswordVisible) {
+        _confirmPasswordTimer?.cancel();
+        _confirmPasswordTimer = Timer(const Duration(seconds: 2), () {
+          setState(() {
+            _isConfirmPasswordVisible = false;
+          });
+        });
+      }
+    });
   }
 
   @override
@@ -126,10 +163,14 @@ class _SignupPageState extends State<SignupPage> {
                           keyboardType: TextInputType.number,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(11),
                           ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your contact number';
+                            }
+                            if (!value.startsWith('09') || value.length != 11) {
+                              return 'Please enter a valid Philippine number (starts with 09, 11 digits)';
                             }
                             return null;
                           },
@@ -149,6 +190,12 @@ class _SignupPageState extends State<SignupPage> {
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your birth date';
+                            }
+                            final birthDate = DateTime.parse(value);
+                            final today = DateTime.now();
+                            final age = today.year - birthDate.year - ((today.month > birthDate.month || (today.month == birthDate.month && today.day >= birthDate.day)) ? 0 : 1);
+                            if (age < 18) {
+                              return 'You must be 18 years or older to use this application';
                             }
                             return null;
                           },
@@ -193,10 +240,17 @@ class _SignupPageState extends State<SignupPage> {
                         const SizedBox(height: 16.0),
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
+                          obscureText: !_isPasswordVisible,
                           decoration: InputDecoration(
                             labelText: 'Password',
                             prefixIcon: Icon(Icons.lock, color: Colors.lightBlue[800]),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: _togglePasswordVisibility,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12.0),
                             ),
@@ -211,10 +265,17 @@ class _SignupPageState extends State<SignupPage> {
                         const SizedBox(height: 16.0),
                         TextFormField(
                           controller: _confirmPasswordController,
-                          obscureText: true,
+                          obscureText: !_isConfirmPasswordVisible,
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             prefixIcon: Icon(Icons.lock, color: Colors.lightBlue[800]),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: _toggleConfirmPasswordVisibility,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12.0),
                             ),

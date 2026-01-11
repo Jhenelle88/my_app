@@ -1,4 +1,5 @@
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:my_app/database_helper.dart';
 import 'package:my_app/main_menu.dart';
@@ -15,11 +16,14 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  Timer? _timer;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -39,6 +43,20 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     }
+  }
+
+  void _togglePasswordVisibility() {
+    setState(() {
+      _isPasswordVisible = !_isPasswordVisible;
+      if (_isPasswordVisible) {
+        _timer?.cancel(); // Cancel any existing timer
+        _timer = Timer(const Duration(seconds: 2), () {
+          setState(() {
+            _isPasswordVisible = false;
+          });
+        });
+      }
+    });
   }
 
   @override
@@ -96,10 +114,17 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 16.0),
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
+                          obscureText: !_isPasswordVisible,
                           decoration: InputDecoration(
                             labelText: 'Password',
                             prefixIcon: Icon(Icons.lock, color: Colors.lightBlue[800]),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: _togglePasswordVisibility,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12.0),
                             ),
