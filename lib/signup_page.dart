@@ -170,7 +170,7 @@ class _SignupPageState extends State<SignupPage> {
                               return 'Please enter your contact number';
                             }
                             if (!value.startsWith('09') || value.length != 11) {
-                              return 'Please enter a valid Philippine number (starts with 09, 11 digits)';
+                              return 'Please enter a valid Philippine number';
                             }
                             return null;
                           },
@@ -258,6 +258,15 @@ class _SignupPageState extends State<SignupPage> {
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your password';
+                            }
+                            bool hasUppercase = value.contains(RegExp(r'[A-Z]'));
+                            bool hasLowercase = value.contains(RegExp(r'[a-z]'));
+                            bool hasNumber = value.contains(RegExp(r'[0-9]'));
+                            bool hasSpecialChar = value.contains(RegExp(r'[@!#\$%^&*()_+-=]'));
+                            bool hasMinLength = value.length >= 8;
+
+                            if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar || !hasMinLength) {
+                                return 'Password must be 8+ characters with \nuppercase, lowercase,number, and \nspecial character (@#!\$%^&*)';
                             }
                             return null;
                           },

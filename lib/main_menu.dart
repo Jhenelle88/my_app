@@ -21,6 +21,7 @@ class MainMenu extends StatefulWidget {
 class _MainMenuState extends State<MainMenu> {
   late Map<String, dynamic> _user;
   File? _image;
+  bool _isNotificationExpanded = false;
 
   @override
   void initState() {
@@ -215,34 +216,36 @@ class _MainMenuState extends State<MainMenu> {
         color: Colors.red[100],
         borderRadius: BorderRadius.circular(16.0),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Icon(Icons.notifications_active, color: Colors.red[800], size: 40.0),
-            const SizedBox(width: 16.0),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Baby is Crying!',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red[800],
-                    ),
-                  ),
-                  const SizedBox(height: 4.0),
-                  Text(
-                    'Reason: Hunger',
-                    style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      child: ExpansionTile(
+        leading: Icon(Icons.notifications_active, color: Colors.red[800], size: 40.0),
+        title: Text(
+          'Baby is Crying!',
+          style: TextStyle(
+            fontSize: 18.0,
+            fontWeight: FontWeight.bold,
+            color: Colors.red[800],
+          ),
         ),
+        subtitle: Text(
+          'Reason: Hunger',
+          style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
+        ),
+        trailing: Icon(
+          _isNotificationExpanded ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+          color: Colors.red[800],
+        ),
+        onExpansionChanged: (bool expanded) {
+          setState(() {
+            _isNotificationExpanded = expanded;
+          });
+        },
+        children: const <Widget>[
+          // TODO: Replace with actual segment data
+          ListTile(title: Text('Segment: ')),
+          ListTile(title: Text('Segment: ')),
+          ListTile(title: Text('Segment: ')),
+          ListTile(title: Text('Segment: ')),
+        ],
       ),
     );
   }
