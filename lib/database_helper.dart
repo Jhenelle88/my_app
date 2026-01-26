@@ -17,7 +17,7 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final path = join(documentsDirectory.path, 'app_database.db');
-    return await openDatabase(path, version: 2, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    return await openDatabase(path, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -33,11 +33,28 @@ class DatabaseHelper {
         imagePath TEXT
       )
     ''');
+    await _createCryHistoryTable(db);
+  }
+
+  Future<void> _createCryHistoryTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE cry_history(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
+        time TEXT NOT NULL,
+        output TEXT NOT NULL,
+        accuracy TEXT NOT NULL,
+        FOREIGN KEY (userId) REFERENCES users (id)
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE users ADD COLUMN imagePath TEXT');
+    }
+    if (oldVersion < 3) {
+      await _createCryHistoryTable(db);
     }
   }
 
@@ -59,5 +76,16 @@ class DatabaseHelper {
     final db = await instance.database;
     int id = row['id'];
     return await db.update('users', row, where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Methods for cry_history table
+  Future<int> insertCryRecord(Map<String, dynamic> row) async {
+    final db = await instance.database;
+    return await db.insert('cry_history', row);
+  }
+
+  Future<List<Map<String, dynamic>>> getCryHistory(int userId) async {
+    final db = await instance.database;
+    return await db.query('cry_history', where: 'userId = ?', whereArgs: [userId], orderBy: 'id DESC');
   }
 }

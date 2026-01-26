@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:my_app/about_us_page.dart';
 import 'package:my_app/basic_information_page.dart';
+import 'package:my_app/cry_behavior_page.dart';
+import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
 import 'package:my_app/faq_page.dart';
@@ -93,6 +95,29 @@ class _MainMenuState extends State<MainMenu> {
                 color: Colors.lightBlue[400],
               ),
             ),
+            ListTile(
+              leading: const Icon(Icons.child_care, color: Colors.lightBlue),
+              title: const Text('Cry Behavior'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CryBehaviorPage(userId: _user['id'])),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.science_outlined, color: Colors.lightBlue),
+              title: const Text('Cry Behavior (Testing)'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CryBehaviorTestingPage(userId: _user['id'])),
+                );
+              },
+            ),
+            const Divider(),
             ExpansionTile(
               leading: const Icon(Icons.account_circle, color: Colors.lightBlue),
               title: const Text('Account'),
@@ -118,7 +143,7 @@ class _MainMenuState extends State<MainMenu> {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const CryHistoryPage()),
+                      MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
                     );
                   },
                 ),
@@ -206,15 +231,6 @@ class _MainMenuState extends State<MainMenu> {
                         _buildHistoryListContent(),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24.0),
-                Card(
-                  elevation: 4.0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildReasonForCrySection(),
                   ),
                 ),
               ],
@@ -422,130 +438,11 @@ class _MainMenuState extends State<MainMenu> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CryHistoryPage()),
+            MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
           );
         },
         icon: const Icon(Icons.history, color: Colors.white),
         label: const Text('View Cry History', style: TextStyle(color: Colors.white, fontSize: 16)),
-      ),
-    );
-  }
-
-  Widget _buildReasonForCrySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Reason for Cry',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 22.0,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueGrey[800],
-          ),
-        ),
-        const SizedBox(height: 16.0),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16.0,
-          mainAxisSpacing: 16.0,
-          children: [
-            _buildReasonButton('Sleeping', Icons.nightlight_round, Colors.blue),
-            _buildReasonButton('Hunger', Icons.restaurant_menu, Colors.green),
-            _buildReasonButton('Pain', Icons.healing, Colors.orange),
-            _buildReasonButton('Discomfort', Icons.thermostat, Colors.purple),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReasonButton(String reason, IconData icon, Color color) {
-    return Card(
-      elevation: 2.0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: InkWell(
-        onTap: () => _showReasonDetails(reason),
-        borderRadius: BorderRadius.circular(12.0),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 8.0),
-              Text(
-                reason,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.blueGrey[800],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showReasonDetails(String reason) {
-    Map<String, String> details;
-    switch (reason) {
-      case 'Sleeping':
-        details = {
-          'Cry Pattern': 'Soft, rhythmic, low intensity',
-          'Detected By':
-              'Low audio frequency\nShort cry duration\nMinimal body movement (motion sensor)',
-          'Indicator': 'Baby is drowsy or transitioning to sleep',
-          'What to Do':
-              'Dim lights and reduce noise\nGently rock or swaddle the baby\nPlace the baby in a comfortable sleeping position',
-        };
-        break;
-      case 'Hunger':
-        details = {
-          'Cry Pattern': 'Repetitive, rising pitch, rhythmic',
-          'Detected By':
-              'Increasing cry intensity over time\nRegular intervals between cries\nTime elapsed since last feeding (timer/log data)',
-          'Indicator': 'Feeding likely needed',
-          'What to Do':
-              'Feed the baby immediately\nEnsure proper feeding position\nBurp the baby after feeding',
-        };
-        break;
-      case 'Discomfort':
-        details = {
-          'Cry Pattern': 'Irregular, fussy, moderate pitch',
-          'Detected By':
-              'Sudden cry onset\nTemperature sensor (too hot/cold)\nMoisture sensor (wet diaper)\nIncreased body movement',
-          'Indicator': 'Environmental or physical discomfort',
-          'What to Do':
-              'Check and change diaper if needed\nAdjust clothing or room temperature\nReposition the baby for comfort',
-        };
-        break;
-      case 'Pain':
-        details = {
-          'Cry Pattern': 'Loud, sharp, high-pitched, continuous',
-          'Detected By':
-              'High audio frequency and amplitude\nProlonged crying with no pauses\nStrong, erratic movements (motion sensor)',
-          'Indicator': 'Possible pain, illness, or distress',
-          'What to Do':
-              'Check for signs of pain (teething, gas, fever)\nComfort and soothe the baby\nSeek medical attention if crying continues',
-        };
-        break;
-      default:
-        details = {};
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CryReasonDetailsPage(
-          reason: reason,
-          details: details,
-        ),
       ),
     );
   }
