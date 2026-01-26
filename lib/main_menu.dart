@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:my_app/about_us_page.dart';
 import 'package:my_app/basic_information_page.dart';
+import 'package:my_app/cry_history_page.dart';
+import 'package:my_app/cry_reason_details_page.dart';
 import 'package:my_app/faq_page.dart';
 import 'package:my_app/login_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
@@ -49,10 +51,11 @@ class _MainMenuState extends State<MainMenu> {
       appBar: AppBar(
         elevation: 4.0,
         backgroundColor: Colors.lightBlue[400],
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
             Image.asset(
-              'assets/LOGO.png',
+              'assets/APP.png',
               height: 40,
             ),
             const SizedBox(width: 8),
@@ -72,14 +75,16 @@ class _MainMenuState extends State<MainMenu> {
           padding: EdgeInsets.zero,
           children: <Widget>[
             UserAccountsDrawerHeader(
-              accountName: Text(_user['fullName'] ?? 'User Name', style: const TextStyle(fontWeight: FontWeight.bold)),
-              accountEmail: Text(_user['email']),
+              accountName: Text(_user['fullName'] ?? 'User Name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              accountEmail: Text(_user['email'] ?? '', style: const TextStyle(fontSize: 14)),
               currentAccountPicture: CircleAvatar(
                 backgroundImage: _image != null ? FileImage(_image!) : null,
                 backgroundColor: Colors.white,
                 child: _image == null
                     ? Text(
-                        _user['fullName'] != null ? _user['fullName'][0].toUpperCase() : 'U',
+                        _user['fullName'] != null && _user['fullName'].isNotEmpty
+                            ? _user['fullName'][0].toUpperCase()
+                            : 'U',
                         style: TextStyle(fontSize: 40.0, color: Colors.lightBlue[800]),
                       )
                     : null,
@@ -89,13 +94,13 @@ class _MainMenuState extends State<MainMenu> {
               ),
             ),
             ExpansionTile(
-              leading: const Icon(Icons.account_circle),
+              leading: const Icon(Icons.account_circle, color: Colors.lightBlue),
               title: const Text('Account'),
               children: <Widget>[
                 ListTile(
                   title: const Text('Basic Information'),
                   onTap: () async {
-                    Navigator.pop(context); // Close the drawer
+                    Navigator.pop(context);
                     final updatedUser = await Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -111,13 +116,17 @@ class _MainMenuState extends State<MainMenu> {
                   title: const Text('Cry History'),
                   onTap: () {
                     Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CryHistoryPage()),
+                    );
                   },
                 ),
               ],
             ),
             ExpansionTile(
-              leading: const Icon(Icons.help),
-              title: const Text('Faq and Resources'),
+              leading: const Icon(Icons.help, color: Colors.lightBlue),
+              title: const Text('FAQ and Resources'),
               children: <Widget>[
                 ListTile(
                   title: const Text('Terms and Conditions'),
@@ -149,16 +158,10 @@ class _MainMenuState extends State<MainMenu> {
                     );
                   },
                 ),
-                ListTile(
-                  title: const Text('Contact Us'),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
               ],
             ),
             ListTile(
-              leading: const Icon(Icons.bluetooth),
+              leading: const Icon(Icons.bluetooth, color: Colors.lightBlue),
               title: const Text('Bluetooth Connection'),
               onTap: () {
                 Navigator.pop(context);
@@ -170,8 +173,8 @@ class _MainMenuState extends State<MainMenu> {
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Log Out'),
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Log Out', style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -183,26 +186,38 @@ class _MainMenuState extends State<MainMenu> {
         ),
       ),
       body: Container(
-        color: Colors.lightBlue[100],
+        color: Colors.lightBlue[50],
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Card(
-              elevation: 8.0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildNotificationContent(),
-                    const SizedBox(height: 24.0),
-                    _buildBarGraphContent(),
-                    const SizedBox(height: 24.0),
-                    _buildHistoryListContent(),
-                  ],
+            child: Column(
+              children: [
+                _buildNotificationContent(),
+                const SizedBox(height: 24.0),
+                Card(
+                  elevation: 4.0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        _buildBarGraphContent(),
+                        const SizedBox(height: 24.0),
+                        _buildHistoryListContent(),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 24.0),
+                Card(
+                  elevation: 4.0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: _buildReasonForCrySection(),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -211,13 +226,12 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   Widget _buildNotificationContent() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.red[100],
-        borderRadius: BorderRadius.circular(16.0),
-      ),
+    return Card(
+      elevation: 4.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      color: Colors.red[100],
       child: ExpansionTile(
-        leading: Icon(Icons.notifications_active, color: Colors.red[800], size: 40.0),
+        leading: Icon(Icons.notifications_active, color: Colors.red[800], size: 32.0),
         title: Text(
           'Baby is Crying!',
           style: TextStyle(
@@ -240,11 +254,17 @@ class _MainMenuState extends State<MainMenu> {
           });
         },
         children: const <Widget>[
-          // TODO: Replace with actual segment data
-          ListTile(title: Text('Segment: ')),
-          ListTile(title: Text('Segment: ')),
-          ListTile(title: Text('Segment: ')),
-          ListTile(title: Text('Segment: ')),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              children: [
+                ListTile(title: Text('Segment: ')),
+                ListTile(title: Text('Segment: ')),
+                ListTile(title: Text('Segment: ')),
+                ListTile(title: Text('Segment: ')),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -254,14 +274,13 @@ class _MainMenuState extends State<MainMenu> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: Text(
-            'Cry Analysis',
-            style: TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-              color: Colors.blueGrey[800],
-            ),
+        Text(
+          'Cry Analysis',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22.0,
+            fontWeight: FontWeight.bold,
+            color: Colors.blueGrey[800],
           ),
         ),
         const SizedBox(height: 24.0),
@@ -327,7 +346,7 @@ class _MainMenuState extends State<MainMenu> {
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 32,
+                    reservedSize: 40,
                     interval: 5,
                     getTitlesWidget: (value, meta) {
                       if (value == 0 || value == meta.max) {
@@ -359,10 +378,10 @@ class _MainMenuState extends State<MainMenu> {
                 show: false,
               ),
               barGroups: [
-                _buildBarChartGroupData(0, 8),
-                _buildBarChartGroupData(1, 15),
-                _buildBarChartGroupData(2, 10),
-                _buildBarChartGroupData(3, 5),
+                _buildBarChartGroupData(0, 8, Colors.orange),
+                _buildBarChartGroupData(1, 15, Colors.green),
+                _buildBarChartGroupData(2, 10, Colors.blue),
+                _buildBarChartGroupData(3, 5, Colors.purple),
               ],
             ),
           ),
@@ -371,14 +390,14 @@ class _MainMenuState extends State<MainMenu> {
     );
   }
 
-  BarChartGroupData _buildBarChartGroupData(int x, double y) {
+  BarChartGroupData _buildBarChartGroupData(int x, double y, Color color) {
     return BarChartGroupData(
       x: x,
       barRods: [
         BarChartRodData(
           toY: y,
           width: 22,
-          color: Colors.lightBlue[400],
+          color: color.withOpacity(0.8),
           borderRadius: const BorderRadius.all(Radius.circular(6)),
           backDrawRodData: BackgroundBarChartRodData(
             show: true,
@@ -391,35 +410,143 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   Widget _buildHistoryListContent() {
+    return Center(
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.lightBlue[400],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+        ),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CryHistoryPage()),
+          );
+        },
+        icon: const Icon(Icons.history, color: Colors.white),
+        label: const Text('View Cry History', style: TextStyle(color: Colors.white, fontSize: 16)),
+      ),
+    );
+  }
+
+  Widget _buildReasonForCrySection() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Cry History',
+          'Reason for Cry',
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 18.0,
+            fontSize: 22.0,
             fontWeight: FontWeight.bold,
-            color: Colors.lightBlue[800],
+            color: Colors.blueGrey[800],
           ),
         ),
-        const SizedBox(height: 8.0),
-        _buildHistoryItem('Hunger', '10:30 AM'),
-        const Divider(),
-        _buildHistoryItem('Pain', '9:15 AM'),
-        const Divider(),
-        _buildHistoryItem('Sleep', 'Yesterday'),
+        const SizedBox(height: 16.0),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 16.0,
+          mainAxisSpacing: 16.0,
+          children: [
+            _buildReasonButton('Sleeping', Icons.nightlight_round, Colors.blue),
+            _buildReasonButton('Hunger', Icons.restaurant_menu, Colors.green),
+            _buildReasonButton('Pain', Icons.healing, Colors.orange),
+            _buildReasonButton('Discomfort', Icons.thermostat, Colors.purple),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildHistoryItem(String reason, String time) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(Icons.history, color: Colors.lightBlue[800]),
-      title: Text(reason),
-      subtitle: Text(time),
-      trailing: const Icon(Icons.arrow_forward_ios),
-      onTap: () {},
+  Widget _buildReasonButton(String reason, IconData icon, Color color) {
+    return Card(
+      elevation: 2.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: InkWell(
+        onTap: () => _showReasonDetails(reason),
+        borderRadius: BorderRadius.circular(12.0),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 32, color: color),
+              const SizedBox(height: 8.0),
+              Text(
+                reason,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.blueGrey[800],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReasonDetails(String reason) {
+    Map<String, String> details;
+    switch (reason) {
+      case 'Sleeping':
+        details = {
+          'Cry Pattern': 'Soft, rhythmic, low intensity',
+          'Detected By':
+              'Low audio frequency\nShort cry duration\nMinimal body movement (motion sensor)',
+          'Indicator': 'Baby is drowsy or transitioning to sleep',
+          'What to Do':
+              'Dim lights and reduce noise\nGently rock or swaddle the baby\nPlace the baby in a comfortable sleeping position',
+        };
+        break;
+      case 'Hunger':
+        details = {
+          'Cry Pattern': 'Repetitive, rising pitch, rhythmic',
+          'Detected By':
+              'Increasing cry intensity over time\nRegular intervals between cries\nTime elapsed since last feeding (timer/log data)',
+          'Indicator': 'Feeding likely needed',
+          'What to Do':
+              'Feed the baby immediately\nEnsure proper feeding position\nBurp the baby after feeding',
+        };
+        break;
+      case 'Discomfort':
+        details = {
+          'Cry Pattern': 'Irregular, fussy, moderate pitch',
+          'Detected By':
+              'Sudden cry onset\nTemperature sensor (too hot/cold)\nMoisture sensor (wet diaper)\nIncreased body movement',
+          'Indicator': 'Environmental or physical discomfort',
+          'What to Do':
+              'Check and change diaper if needed\nAdjust clothing or room temperature\nReposition the baby for comfort',
+        };
+        break;
+      case 'Pain':
+        details = {
+          'Cry Pattern': 'Loud, sharp, high-pitched, continuous',
+          'Detected By':
+              'High audio frequency and amplitude\nProlonged crying with no pauses\nStrong, erratic movements (motion sensor)',
+          'Indicator': 'Possible pain, illness, or distress',
+          'What to Do':
+              'Check for signs of pain (teething, gas, fever)\nComfort and soothe the baby\nSeek medical attention if crying continues',
+        };
+        break;
+      default:
+        details = {};
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CryReasonDetailsPage(
+          reason: reason,
+          details: details,
+        ),
+      ),
     );
   }
 }

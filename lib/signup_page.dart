@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:my_app/database_helper.dart';
 import 'package:intl/intl.dart';
+import 'package:sqflite/sqflite.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -49,8 +50,30 @@ class _SignupPageState extends State<SignupPage> {
         'email': _emailController.text,
         'password': _passwordController.text,
       };
-      await DatabaseHelper.instance.insertUser(user);
-      Navigator.pop(context);
+      try {
+        await DatabaseHelper.instance.insertUser(user);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Signup successful! Please login.')),
+        );
+        Navigator.pop(context);
+      } on DatabaseException catch (e) {
+        if (!mounted) return;
+        if (e.isUniqueConstraintError()) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('The email address is already in use.')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Database error: $e')),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('An unexpected error occurred: $e')),
+        );
+      }
     }
   }
 
