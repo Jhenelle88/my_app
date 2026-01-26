@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:my_app/about_us_page.dart';
 import 'package:my_app/basic_information_page.dart';
-import 'package:my_app/cry_behavior_page.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
@@ -94,17 +93,6 @@ class _MainMenuState extends State<MainMenu> {
               decoration: BoxDecoration(
                 color: Colors.lightBlue[400],
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.child_care, color: Colors.lightBlue),
-              title: const Text('Cry Behavior'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => CryBehaviorPage(userId: _user['id'])),
-                );
-              },
             ),
             ListTile(
               leading: const Icon(Icons.science_outlined, color: Colors.lightBlue),
