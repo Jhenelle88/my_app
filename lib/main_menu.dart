@@ -1,7 +1,9 @@
 
 import 'dart:io';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import 'package:my_app/about_us_page.dart';
 import 'package:my_app/basic_information_page.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
@@ -12,6 +14,16 @@ import 'package:my_app/login_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
 import 'package:my_app/bluetooth_page.dart';
 import 'package:my_app/wifi_connection_page.dart';
+
+// Represents the data for a single day's cry analysis
+class CryData {
+  final double pain;
+  final double hunger;
+  final double sleep;
+  final double discomfort;
+
+  CryData({this.pain = 0, this.hunger = 0, this.sleep = 0, this.discomfort = 0});
+}
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -26,6 +38,24 @@ class _MainMenuState extends State<MainMenu> {
   late Map<String, dynamic> _user;
   File? _image;
   bool _isNotificationExpanded = false;
+  DateTime _selectedDate = DateTime.now();
+
+  // Audio Players
+  final AudioPlayer _bgmPlayer = AudioPlayer();
+
+  // --- Simulated Database ---
+  final Map<String, CryData> _cryDataDatabase = {
+    DateFormat.yMMMd().format(DateTime.now()): CryData(pain: 8, hunger: 15, sleep: 10, discomfort: 5),
+    DateFormat.yMMMd().format(DateTime.now().subtract(const Duration(days: 1))): CryData(pain: 4, hunger: 18, sleep: 7, discomfort: 9),
+    DateFormat.yMMMd().format(DateTime.now().subtract(const Duration(days: 2))): CryData(pain: 12, hunger: 9, sleep: 14, discomfort: 3),
+    DateFormat.yMMMd().format(DateTime.now().subtract(const Duration(days: 5))): CryData(pain: 7, hunger: 7, sleep: 7, discomfort: 7),
+  };
+  // --- End Simulated Database ---
+
+  CryData _getCurrentCryData() {
+    final formattedDate = DateFormat.yMMMd().format(_selectedDate);
+    return _cryDataDatabase[formattedDate] ?? CryData();
+  }
 
   @override
   void initState() {
@@ -34,6 +64,24 @@ class _MainMenuState extends State<MainMenu> {
     if (_user['imagePath'] != null) {
       _image = File(_user['imagePath']);
     }
+    // Start background music on loop
+    _bgmPlayer.play(AssetSource('audio/graduation_march.mp3'));
+    _bgmPlayer.setReleaseMode(ReleaseMode.loop);
+  }
+
+  @override
+  void dispose() {
+    // Stop and release audio players to free resources
+    _bgmPlayer.stop();
+    _bgmPlayer.dispose();
+    super.dispose();
+  }
+
+  void _playClickSound() {
+    // Create a new player for each click to allow for rapid, overlapping sounds.
+    final player = AudioPlayer();
+    player.play(AssetSource('audio/button_click.mp3'));
+    // The player will release itself after it finishes playing.
   }
 
   void _updateUser(Map<String, dynamic> newUser) {
@@ -44,6 +92,32 @@ class _MainMenuState extends State<MainMenu> {
       } else {
         _image = null;
       }
+    });
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    _playClickSound();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  void _changeDate(int days) {
+    _playClickSound();
+    final newDate = _selectedDate.add(Duration(days: days));
+    if (newDate.isAfter(DateTime.now()) && !DateUtils.isSameDay(newDate, DateTime.now())) {
+      return;
+    }
+    setState(() {
+      _selectedDate = newDate;
     });
   }
 
@@ -99,6 +173,7 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.science_outlined, color: Colors.lightBlue),
               title: const Text('Cry Behavior (Testing)'),
               onTap: () {
+                _playClickSound();
                 Navigator.pop(context);
                 Navigator.push(
                   context,
@@ -110,10 +185,12 @@ class _MainMenuState extends State<MainMenu> {
             ExpansionTile(
               leading: const Icon(Icons.account_circle, color: Colors.lightBlue),
               title: const Text('Account'),
+              onExpansionChanged: (expanded) => _playClickSound(),
               children: <Widget>[
                 ListTile(
                   title: const Text('Basic Information'),
                   onTap: () async {
+                    _playClickSound();
                     Navigator.pop(context);
                     final updatedUser = await Navigator.push(
                       context,
@@ -129,6 +206,7 @@ class _MainMenuState extends State<MainMenu> {
                 ListTile(
                   title: const Text('Cry History'),
                   onTap: () {
+                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -141,10 +219,12 @@ class _MainMenuState extends State<MainMenu> {
             ExpansionTile(
               leading: const Icon(Icons.help, color: Colors.lightBlue),
               title: const Text('FAQ and Resources'),
+              onExpansionChanged: (expanded) => _playClickSound(),
               children: <Widget>[
                 ListTile(
                   title: const Text('Terms and Conditions'),
                   onTap: () {
+                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -155,6 +235,7 @@ class _MainMenuState extends State<MainMenu> {
                 ListTile(
                   title: const Text('About Us'),
                   onTap: () {
+                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -165,6 +246,7 @@ class _MainMenuState extends State<MainMenu> {
                 ListTile(
                   title: const Text('FAQs'),
                   onTap: () {
+                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -178,6 +260,7 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.bluetooth, color: Colors.lightBlue),
               title: const Text('Bluetooth Connection'),
               onTap: () {
+                _playClickSound();
                 Navigator.pop(context);
                 Navigator.push(
                   context,
@@ -189,6 +272,7 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.wifi, color: Colors.lightBlue),
               title: const Text('Wi-Fi Connection'),
               onTap: () {
+                _playClickSound();
                 Navigator.pop(context);
                 Navigator.push(
                   context,
@@ -201,6 +285,7 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Log Out', style: TextStyle(color: Colors.red)),
               onTap: () {
+                _playClickSound();
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const LoginPage()),
                   (Route<dynamic> route) => false,
@@ -227,8 +312,10 @@ class _MainMenuState extends State<MainMenu> {
                     child: Column(
                       children: [
                         _buildBarGraphContent(),
-                        const SizedBox(height: 24.0),
-                        _buildHistoryListContent(),
+                        const SizedBox(height: 16.0),
+                        const Divider(),
+                        const SizedBox(height: 16.0),
+                        _buildHistorySection(),
                       ],
                     ),
                   ),
@@ -274,6 +361,7 @@ class _MainMenuState extends State<MainMenu> {
           color: Colors.red[800],
         ),
         onExpansionChanged: (bool expanded) {
+          _playClickSound();
           setState(() {
             _isNotificationExpanded = expanded;
           });
@@ -296,6 +384,9 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   Widget _buildBarGraphContent() {
+    bool isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
+    final currentData = _getCurrentCryData();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -308,7 +399,44 @@ class _MainMenuState extends State<MainMenu> {
             color: Colors.blueGrey[800],
           ),
         ),
-        const SizedBox(height: 24.0),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_left),
+              onPressed: () => _changeDate(-1),
+            ),
+            Expanded(
+              child: InkWell(
+                onTap: () => _selectDate(context),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      isToday ? 'Today' : DateFormat.yMMMd().format(_selectedDate),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey[700],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.calendar_today, color: Colors.lightBlue, size: 20),
+                  ],
+                ),
+              ),
+            ),
+            Opacity(
+              opacity: isToday ? 0.0 : 1.0,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_right),
+                onPressed: isToday ? null : () => _changeDate(1),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16.0),
         AspectRatio(
           aspectRatio: 1.6,
           child: BarChart(
@@ -403,10 +531,10 @@ class _MainMenuState extends State<MainMenu> {
                 show: false,
               ),
               barGroups: [
-                _buildBarChartGroupData(0, 8, Colors.orange),
-                _buildBarChartGroupData(1, 15, Colors.green),
-                _buildBarChartGroupData(2, 10, Colors.blue),
-                _buildBarChartGroupData(3, 5, Colors.purple),
+                _buildBarChartGroupData(0, currentData.pain, Colors.orange),
+                _buildBarChartGroupData(1, currentData.hunger, Colors.green),
+                _buildBarChartGroupData(2, currentData.sleep, Colors.blue),
+                _buildBarChartGroupData(3, currentData.discomfort, Colors.purple),
               ],
             ),
           ),
@@ -434,25 +562,86 @@ class _MainMenuState extends State<MainMenu> {
     );
   }
 
-  Widget _buildHistoryListContent() {
-    return Center(
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.lightBlue[400],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+  Widget _buildHistorySection() {
+    bool isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
+
+    if (isToday) {
+      return Center(
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.lightBlue[400],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+          onPressed: () {
+            _playClickSound();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
+            );
+          },
+          icon: const Icon(Icons.history, color: Colors.white),
+          label: const Text('View Full Cry History', style: TextStyle(color: Colors.white, fontSize: 16)),
         ),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
-          );
-        },
-        icon: const Icon(Icons.history, color: Colors.white),
-        label: const Text('View Cry History', style: TextStyle(color: Colors.white, fontSize: 16)),
-      ),
+      );
+    } else {
+      final pastData = _getCurrentCryData();
+      final hasData = pastData.pain > 0 || pastData.hunger > 0 || pastData.sleep > 0 || pastData.discomfort > 0;
+
+      if (!hasData) {
+        return Center(
+          child: Text(
+            'No cry data recorded for ${DateFormat.yMMMd().format(_selectedDate)}.',
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Summary for ${DateFormat.yMMMd().format(_selectedDate)}',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey[700]),
+          ),
+          const SizedBox(height: 12),
+          _buildSummaryRow('Hunger', pastData.hunger, Colors.green),
+          const SizedBox(height: 8),
+          _buildSummaryRow('Pain', pastData.pain, Colors.orange),
+          const SizedBox(height: 8),
+          _buildSummaryRow('Sleep', pastData.sleep, Colors.blue),
+          const SizedBox(height: 8),
+          _buildSummaryRow('Discomfort', pastData.discomfort, Colors.purple),
+        ],
+      );
+    }
+  }
+
+  Widget _buildSummaryRow(String reason, double value, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$reason:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey[600]),
+        ),
+        const Spacer(),
+        Text(
+          '${value.round()} events',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+        ),
+      ],
     );
   }
 
@@ -518,6 +707,7 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   void _showReasonDetails(String reason) {
+    _playClickSound();
     Map<String, String> details;
     switch (reason) {
       case 'Sleeping':

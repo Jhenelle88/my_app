@@ -39,6 +39,7 @@ dependencies:
   permission_handler: ^11.3.1
   wifi_iot: ^0.3.17
   wifi_scan: ^0.4.0
+  audioplayers: ^5.2.1
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -71,6 +72,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/
+    - assets/audio/
     - assets/sleeping.png
     - assets/hunger.png
     - assets/pain.png

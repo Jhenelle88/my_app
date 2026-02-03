@@ -61,8 +61,8 @@ class _BluetoothPageState extends State<BluetoothPage> {
 
   void _startScan() async {
     if (await FlutterBluePlus.isSupported == false) {
-        _showErrorDialog("Unsupported", "Bluetooth is not supported on this device.");
-        return;
+      _showErrorDialog("Unsupported", "Bluetooth is not supported on this device.");
+      return;
     }
 
     bool permissionsGranted = await _requestPermissions();
@@ -70,15 +70,15 @@ class _BluetoothPageState extends State<BluetoothPage> {
 
     var locationStatus = await Permission.location.serviceStatus;
     if (locationStatus.isDisabled) {
-        _showErrorDialog(
-            "Location Services Disabled",
-            "Please turn on location services in your phone's settings to find nearby devices."
-        );
-        return;
+      _showErrorDialog(
+          "Location Services Disabled",
+          "Please turn on location services in your phone's settings to find nearby devices."
+      );
+      return;
     }
 
     await FlutterBluePlus.turnOn();
-    
+
     setState(() => _isScanning = true);
 
     try {
@@ -89,7 +89,7 @@ class _BluetoothPageState extends State<BluetoothPage> {
     } catch (e) {
       _showErrorDialog("Scan Error", e.toString());
     }
-    
+
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted && _isScanning) {
         FlutterBluePlus.stopScan();
@@ -106,18 +106,18 @@ class _BluetoothPageState extends State<BluetoothPage> {
 
     _connectionStateSubscription = device.connectionState.listen((state) {
       if (mounted) {
-          if (state == BluetoothConnectionState.connected) {
-            setState(() { _connectedDevice = device; });
-          } else if (state == BluetoothConnectionState.disconnected) {
-             setState(() { _connectedDevice = null; });
-          }
+        if (state == BluetoothConnectionState.connected) {
+          setState(() { _connectedDevice = device; });
+        } else if (state == BluetoothConnectionState.disconnected) {
+          setState(() { _connectedDevice = null; });
+        }
       }
     });
 
     try {
       await device.connect(timeout: const Duration(seconds: 10));
     } catch (e) {
-       _showErrorDialog("Connection Error", e.toString());
+      _showErrorDialog("Connection Error", e.toString());
     }
   }
 
@@ -125,7 +125,7 @@ class _BluetoothPageState extends State<BluetoothPage> {
     _connectionStateSubscription?.cancel();
     _connectedDevice?.disconnect();
   }
-  
+
   void _showErrorDialog(String title, String content) {
     showDialog(
       context: context,
@@ -149,10 +149,10 @@ class _BluetoothPageState extends State<BluetoothPage> {
       icon: Icon(_isScanning ? Icons.stop : Icons.bluetooth_searching),
       label: Text(_isScanning ? 'Scanning...' : 'Scan for Devices'),
       onPressed: _connectedDevice != null ? null : _startScan,
-       style: ElevatedButton.styleFrom(
-          backgroundColor: _isScanning ? Colors.grey : Colors.lightBlue[400],
-          foregroundColor: Colors.white,
-        ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _isScanning ? Colors.grey : Colors.lightBlue[400],
+        foregroundColor: Colors.white,
+      ),
     );
   }
 
@@ -182,27 +182,27 @@ class _BluetoothPageState extends State<BluetoothPage> {
   Widget _buildScanResultsList() {
     return _scanResults.isEmpty
         ? Center(
-            child: Text(
-              _isScanning ? 'Searching for devices...' : 'No devices found. Press "Scan" to start.',
-              textAlign: TextAlign.center,
-            ),
-          )
+      child: Text(
+        _isScanning ? 'Searching for devices...' : 'No devices found. Press "Scan" to start.',
+        textAlign: TextAlign.center,
+      ),
+    )
         : ListView.builder(
-            itemCount: _scanResults.length,
-            itemBuilder: (context, index) {
-              final result = _scanResults[index];
-              return Card(
-                child: ListTile(
-                  title: Text(result.device.platformName.isNotEmpty ? result.device.platformName : "Unnamed Device"),
-                  subtitle: Text(result.device.remoteId.toString()),
-                  trailing: ElevatedButton(
-                    child: const Text('Connect'),
-                    onPressed: () => _connectToDevice(result.device),
-                  ),
-                ),
-              );
-            },
-          );
+      itemCount: _scanResults.length,
+      itemBuilder: (context, index) {
+        final result = _scanResults[index];
+        return Card(
+          child: ListTile(
+            title: Text(result.device.platformName.isNotEmpty ? result.device.platformName : "Unnamed Device"),
+            subtitle: Text(result.device.remoteId.toString()),
+            trailing: ElevatedButton(
+              child: const Text('Connect'),
+              onPressed: () => _connectToDevice(result.device),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
