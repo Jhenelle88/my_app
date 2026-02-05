@@ -48,7 +48,7 @@ class _MainMenuState extends State<MainMenu> {
     _bgmPlayer.play(AssetSource('audio/graduation_march.mp3'));
     _bgmPlayer.setReleaseMode(ReleaseMode.loop);
 
-    _cryCountsFuture = DatabaseHelper.instance.getCryReasonCounts(_user['id']);
+    _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(_user['id'], DateFormat.yMMMd().format(_selectedDate));
   }
 
   @override
@@ -83,7 +83,7 @@ class _MainMenuState extends State<MainMenu> {
 
   void _refreshCryCounts() {
     setState(() {
-      _cryCountsFuture = DatabaseHelper.instance.getCryReasonCounts(_user['id']);
+      _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(_user['id'], DateFormat.yMMMd().format(_selectedDate));
     });
   }
 
@@ -97,6 +97,7 @@ class _MainMenuState extends State<MainMenu> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _refreshCryCounts();
       });
     }
   }
@@ -108,6 +109,7 @@ class _MainMenuState extends State<MainMenu> {
     }
     setState(() {
       _selectedDate = newDate;
+      _refreshCryCounts();
     });
   }
 
@@ -203,7 +205,7 @@ class _MainMenuState extends State<MainMenu> {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
+                      MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'], initialDate: _selectedDate)),
                     ).then((_) => _refreshCryCounts());
                   },
                 ),
@@ -377,7 +379,7 @@ class _MainMenuState extends State<MainMenu> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        if (!snapshot.hasData) {
           return Column(
             children: [
               Text(
@@ -390,7 +392,7 @@ class _MainMenuState extends State<MainMenu> {
                 ),
               ),
               const SizedBox(height: 24.0),
-              const Center(child: Text('No cry data to display.')),
+              const Center(child: Text('No cry data to display for this date.')),
             ],
           );
         }
@@ -601,7 +603,7 @@ class _MainMenuState extends State<MainMenu> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
+            MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'], initialDate: _selectedDate)),
           ).then((_) => _refreshCryCounts());
         },
         icon: const Icon(Icons.history, color: Colors.white),

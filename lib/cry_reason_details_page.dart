@@ -80,9 +80,11 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
   void _handleFeedback(bool isCorrect) async {
     final now = DateTime.now();
     final time = DateFormat('hh:mm a').format(now);
+    final date = DateFormat.yMMMd().format(now);
     final newRecord = {
       'userId': widget.userId,
       'time': time,
+      'date': date,
       'output': widget.reason,
       'accuracy': isCorrect ? 'True' : 'False',
     };

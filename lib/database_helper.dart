@@ -17,7 +17,7 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final path = join(documentsDirectory.path, 'app_database.db');
-    return await openDatabase(path, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    return await openDatabase(path, version: 4, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -42,6 +42,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER NOT NULL,
         time TEXT NOT NULL,
+        date TEXT NOT NULL,
         output TEXT NOT NULL,
         accuracy TEXT NOT NULL,
         FOREIGN KEY (userId) REFERENCES users (id)
@@ -54,7 +55,14 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE users ADD COLUMN imagePath TEXT');
     }
     if (oldVersion < 3) {
-      await _createCryHistoryTable(db);
+      await _createCryHistoryTable(db).catchError((e) { /* table probably already exists */ });
+    }
+    if (oldVersion < 4) {
+      try {
+        await db.execute('ALTER TABLE cry_history ADD COLUMN date TEXT NOT NULL DEFAULT \'\'');
+      } catch (e) {
+        // May fail if the column already exists during development hot restarts
+      }
     }
   }
 
@@ -84,18 +92,18 @@ class DatabaseHelper {
     return await db.insert('cry_history', row);
   }
 
-  Future<List<Map<String, dynamic>>> getCryHistory(int userId) async {
+  Future<List<Map<String, dynamic>>> getCryHistoryByDate(int userId, String date) async {
     final db = await instance.database;
-    return await db.query('cry_history', where: 'userId = ?', whereArgs: [userId], orderBy: 'id DESC');
+    return await db.query('cry_history', where: 'userId = ? AND date = ?', whereArgs: [userId, date], orderBy: 'id DESC');
   }
 
-  Future<Map<String, int>> getCryReasonCounts(int userId) async {
+  Future<Map<String, int>> getCryReasonCountsByDate(int userId, String date) async {
     final db = await instance.database;
     final List<Map<String, dynamic>> result = await db.query(
       'cry_history',
       columns: ['output', 'COUNT(*) as count'],
-      where: 'userId = ?',
-      whereArgs: [userId],
+      where: 'userId = ? AND date = ?',
+      whereArgs: [userId, date],
       groupBy: 'output',
     );
 
@@ -104,5 +112,10 @@ class DatabaseHelper {
       counts[row['output']] = row['count'] as int;
     }
     return counts;
+  }
+
+  Future<void> deleteCryHistory(int userId) async {
+    final db = await instance.database;
+    await db.delete('cry_history', where: 'userId = ?', whereArgs: [userId]);
   }
 }
