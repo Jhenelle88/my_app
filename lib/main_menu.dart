@@ -15,7 +15,6 @@ import 'package:my_app/faq_page.dart';
 import 'package:my_app/login_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
 import 'package:my_app/bluetooth_page.dart';
-import 'package:my_app/wifi_connection_page.dart';
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -255,17 +254,6 @@ class _MainMenuState extends State<MainMenu> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const BluetoothPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.wifi, color: Colors.lightBlue),
-              title: const Text('Wi-Fi Connection'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WifiConnectionPage()),
                 );
               },
             ),

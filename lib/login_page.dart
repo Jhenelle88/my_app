@@ -2,9 +2,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:my_app/database_helper.dart';
+import 'package:my_app/forgot_password_page.dart';
 import 'package:my_app/main_menu.dart';
 import 'package:my_app/signup_page.dart';
-import 'package:my_app/wifi_connection_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -167,12 +167,12 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const WifiConnectionPage()),
+                              MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
                             );
                           },
                           child: Text(
-                            "Connect to Wi-Fi",
-                            style: TextStyle(color: Colors.lightBlue[800]),
+                            'Forgot Password?',
+                            style: TextStyle(color: Colors.grey[600]),
                           ),
                         ),
                       ],

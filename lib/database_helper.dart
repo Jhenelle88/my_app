@@ -86,6 +86,16 @@ class DatabaseHelper {
     return await db.update('users', row, where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<int> updatePasswordByEmail(String email, String newPassword) async {
+    final db = await instance.database;
+    return await db.update(
+      'users',
+      {'password': newPassword},
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+  }
+
   // Methods for cry_history table
   Future<int> insertCryRecord(Map<String, dynamic> row) async {
     final db = await instance.database;
