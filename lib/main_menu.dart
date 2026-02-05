@@ -1,5 +1,6 @@
 
 import 'dart:io';
+import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -9,21 +10,12 @@ import 'package:my_app/basic_information_page.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
+import 'package:my_app/database_helper.dart';
 import 'package:my_app/faq_page.dart';
 import 'package:my_app/login_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
 import 'package:my_app/bluetooth_page.dart';
 import 'package:my_app/wifi_connection_page.dart';
-
-// Represents the data for a single day's cry analysis
-class CryData {
-  final double pain;
-  final double hunger;
-  final double sleep;
-  final double discomfort;
-
-  CryData({this.pain = 0, this.hunger = 0, this.sleep = 0, this.discomfort = 0});
-}
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -38,24 +30,12 @@ class _MainMenuState extends State<MainMenu> {
   late Map<String, dynamic> _user;
   File? _image;
   bool _isNotificationExpanded = false;
+  bool _isMusicPlaying = true;
+  late Future<Map<String, int>> _cryCountsFuture;
   DateTime _selectedDate = DateTime.now();
 
   // Audio Players
   final AudioPlayer _bgmPlayer = AudioPlayer();
-
-  // --- Simulated Database ---
-  final Map<String, CryData> _cryDataDatabase = {
-    DateFormat.yMMMd().format(DateTime.now()): CryData(pain: 8, hunger: 15, sleep: 10, discomfort: 5),
-    DateFormat.yMMMd().format(DateTime.now().subtract(const Duration(days: 1))): CryData(pain: 4, hunger: 18, sleep: 7, discomfort: 9),
-    DateFormat.yMMMd().format(DateTime.now().subtract(const Duration(days: 2))): CryData(pain: 12, hunger: 9, sleep: 14, discomfort: 3),
-    DateFormat.yMMMd().format(DateTime.now().subtract(const Duration(days: 5))): CryData(pain: 7, hunger: 7, sleep: 7, discomfort: 7),
-  };
-  // --- End Simulated Database ---
-
-  CryData _getCurrentCryData() {
-    final formattedDate = DateFormat.yMMMd().format(_selectedDate);
-    return _cryDataDatabase[formattedDate] ?? CryData();
-  }
 
   @override
   void initState() {
@@ -67,6 +47,8 @@ class _MainMenuState extends State<MainMenu> {
     // Start background music on loop
     _bgmPlayer.play(AssetSource('audio/graduation_march.mp3'));
     _bgmPlayer.setReleaseMode(ReleaseMode.loop);
+
+    _cryCountsFuture = DatabaseHelper.instance.getCryReasonCounts(_user['id']);
   }
 
   @override
@@ -77,11 +59,15 @@ class _MainMenuState extends State<MainMenu> {
     super.dispose();
   }
 
-  void _playClickSound() {
-    // Create a new player for each click to allow for rapid, overlapping sounds.
-    final player = AudioPlayer();
-    player.play(AssetSource('audio/button_click.mp3'));
-    // The player will release itself after it finishes playing.
+  void _toggleMusic() {
+    if (_isMusicPlaying) {
+      _bgmPlayer.pause();
+    } else {
+      _bgmPlayer.resume();
+    }
+    setState(() {
+      _isMusicPlaying = !_isMusicPlaying;
+    });
   }
 
   void _updateUser(Map<String, dynamic> newUser) {
@@ -95,8 +81,13 @@ class _MainMenuState extends State<MainMenu> {
     });
   }
 
+  void _refreshCryCounts() {
+    setState(() {
+      _cryCountsFuture = DatabaseHelper.instance.getCryReasonCounts(_user['id']);
+    });
+  }
+
   Future<void> _selectDate(BuildContext context) async {
-    _playClickSound();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -111,7 +102,6 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   void _changeDate(int days) {
-    _playClickSound();
     final newDate = _selectedDate.add(Duration(days: days));
     if (newDate.isAfter(DateTime.now()) && !DateUtils.isSameDay(newDate, DateTime.now())) {
       return;
@@ -145,6 +135,13 @@ class _MainMenuState extends State<MainMenu> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: Icon(_isMusicPlaying ? Icons.music_note : Icons.music_off),
+            tooltip: 'Toggle Music',
+            onPressed: _toggleMusic,
+          ),
+        ],
       ),
       drawer: Drawer(
         child: ListView(
@@ -173,24 +170,21 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.science_outlined, color: Colors.lightBlue),
               title: const Text('Cry Behavior (Testing)'),
               onTap: () {
-                _playClickSound();
                 Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => CryBehaviorTestingPage(userId: _user['id'])),
-                );
+                ).then((_) => _refreshCryCounts());
               },
             ),
             const Divider(),
             ExpansionTile(
               leading: const Icon(Icons.account_circle, color: Colors.lightBlue),
               title: const Text('Account'),
-              onExpansionChanged: (expanded) => _playClickSound(),
               children: <Widget>[
                 ListTile(
                   title: const Text('Basic Information'),
                   onTap: () async {
-                    _playClickSound();
                     Navigator.pop(context);
                     final updatedUser = await Navigator.push(
                       context,
@@ -206,12 +200,11 @@ class _MainMenuState extends State<MainMenu> {
                 ListTile(
                   title: const Text('Cry History'),
                   onTap: () {
-                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
-                    );
+                    ).then((_) => _refreshCryCounts());
                   },
                 ),
               ],
@@ -219,12 +212,10 @@ class _MainMenuState extends State<MainMenu> {
             ExpansionTile(
               leading: const Icon(Icons.help, color: Colors.lightBlue),
               title: const Text('FAQ and Resources'),
-              onExpansionChanged: (expanded) => _playClickSound(),
               children: <Widget>[
                 ListTile(
                   title: const Text('Terms and Conditions'),
                   onTap: () {
-                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -235,7 +226,6 @@ class _MainMenuState extends State<MainMenu> {
                 ListTile(
                   title: const Text('About Us'),
                   onTap: () {
-                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -246,7 +236,6 @@ class _MainMenuState extends State<MainMenu> {
                 ListTile(
                   title: const Text('FAQs'),
                   onTap: () {
-                    _playClickSound();
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -260,7 +249,6 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.bluetooth, color: Colors.lightBlue),
               title: const Text('Bluetooth Connection'),
               onTap: () {
-                _playClickSound();
                 Navigator.pop(context);
                 Navigator.push(
                   context,
@@ -272,7 +260,6 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.wifi, color: Colors.lightBlue),
               title: const Text('Wi-Fi Connection'),
               onTap: () {
-                _playClickSound();
                 Navigator.pop(context);
                 Navigator.push(
                   context,
@@ -285,7 +272,6 @@ class _MainMenuState extends State<MainMenu> {
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Log Out', style: TextStyle(color: Colors.red)),
               onTap: () {
-                _playClickSound();
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const LoginPage()),
                   (Route<dynamic> route) => false,
@@ -361,7 +347,6 @@ class _MainMenuState extends State<MainMenu> {
           color: Colors.red[800],
         ),
         onExpansionChanged: (bool expanded) {
-          _playClickSound();
           setState(() {
             _isNotificationExpanded = expanded;
           });
@@ -385,165 +370,206 @@ class _MainMenuState extends State<MainMenu> {
 
   Widget _buildBarGraphContent() {
     bool isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
-    final currentData = _getCurrentCryData();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Cry Analysis',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 22.0,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueGrey[800],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return FutureBuilder<Map<String, int>>(
+      future: _cryCountsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Column(
+            children: [
+              Text(
+                'Cry Analysis',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22.0,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueGrey[800],
+                ),
+              ),
+              const SizedBox(height: 24.0),
+              const Center(child: Text('No cry data to display.')),
+            ],
+          );
+        }
+
+        final cryCounts = snapshot.data!;
+        final double maxCount = (cryCounts.values.isEmpty ? 0 : cryCounts.values.reduce(max)).toDouble();
+        
+        double getNiceMaxValue(double maxValue) {
+            if (maxValue <= 0) return 10;
+            final exponent = (log(maxValue) / ln10).floor();
+            final powerOf10 = pow(10, exponent);
+            final msd = (maxValue / powerOf10).ceil();
+            if (msd > 5) return 10 * powerOf10.toDouble();
+            if (msd > 2) return 5 * powerOf10.toDouble();
+            return 2 * powerOf10.toDouble();
+        }
+
+        final double maxY = getNiceMaxValue(maxCount);
+        final double interval = (maxY / 5);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_left),
-              onPressed: () => _changeDate(-1),
+            Text(
+              'Cry Analysis',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22.0,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueGrey[800],
+              ),
             ),
-            Expanded(
-              child: InkWell(
-                onTap: () => _selectDate(context),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      isToday ? 'Today' : DateFormat.yMMMd().format(_selectedDate),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey[700],
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_left),
+                  onPressed: () => _changeDate(-1),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _selectDate(context),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          isToday ? 'Today' : DateFormat.yMMMd().format(_selectedDate),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueGrey[700],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.calendar_today, color: Colors.lightBlue, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                Opacity(
+                  opacity: isToday ? 0.0 : 1.0,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_right),
+                    onPressed: isToday ? null : () => _changeDate(1),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            AspectRatio(
+              aspectRatio: 1.6,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxY,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.blueGrey[800]!,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          '${rod.toY.round()}',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          final style = TextStyle(
+                            color: Colors.grey[800],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          );
+                          String text;
+                          switch (value.toInt()) {
+                            case 0:
+                              text = 'Pain';
+                              break;
+                            case 1:
+                              text = 'Hunger';
+                              break;
+                            case 2:
+                              text = 'Sleep';
+                              break;
+                            case 3:
+                              text = 'Discomfort';
+                              break;
+                            default:
+                              text = '';
+                              break;
+                          }
+                          return SideTitleWidget(
+                            axisSide: meta.axisSide,
+                            space: 8.0,
+                            child: Text(text, style: style),
+                          );
+                        },
+                        reservedSize: 38,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.calendar_today, color: Colors.lightBlue, size: 20),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        interval: interval,
+                        getTitlesWidget: (value, meta) {
+                          if (value > meta.max) {
+                            return Container();
+                          }
+                           return Text(
+                            value.toInt().toString(),
+                            style: TextStyle(color: Colors.grey[700], fontSize: 10),
+                            textAlign: TextAlign.left,
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: interval,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: Colors.grey[300]!,
+                        strokeWidth: 1,
+                      );
+                    },
+                  ),
+                  borderData: FlBorderData(
+                    show: false,
+                  ),
+                  barGroups: [
+                    _buildBarChartGroupData(0, cryCounts['Pain']?.toDouble() ?? 0, Colors.orange, maxY),
+                    _buildBarChartGroupData(1, cryCounts['Hunger']?.toDouble() ?? 0, Colors.green, maxY),
+                    _buildBarChartGroupData(2, cryCounts['Sleeping']?.toDouble() ?? 0, Colors.blue, maxY),
+                    _buildBarChartGroupData(3, cryCounts['Discomfort']?.toDouble() ?? 0, Colors.purple, maxY),
                   ],
                 ),
               ),
             ),
-            Opacity(
-              opacity: isToday ? 0.0 : 1.0,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_right),
-                onPressed: isToday ? null : () => _changeDate(1),
-              ),
-            ),
           ],
-        ),
-        const SizedBox(height: 16.0),
-        AspectRatio(
-          aspectRatio: 1.6,
-          child: BarChart(
-            BarChartData(
-              alignment: BarChartAlignment.spaceAround,
-              maxY: 20,
-              barTouchData: BarTouchData(
-                enabled: true,
-                touchTooltipData: BarTouchTooltipData(
-                  getTooltipColor: (group) => Colors.blueGrey[800]!,
-                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                    return BarTooltipItem(
-                      '${rod.toY.round()}',
-                      const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (double value, TitleMeta meta) {
-                      final style = TextStyle(
-                        color: Colors.grey[800],
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      );
-                      String text;
-                      switch (value.toInt()) {
-                        case 0:
-                          text = 'Pain';
-                          break;
-                        case 1:
-                          text = 'Hunger';
-                          break;
-                        case 2:
-                          text = 'Sleep';
-                          break;
-                        case 3:
-                          text = 'Discomfort';
-                          break;
-                        default:
-                          text = '';
-                          break;
-                      }
-                      return SideTitleWidget(
-                        axisSide: meta.axisSide,
-                        space: 8.0,
-                        child: Text(text, style: style),
-                      );
-                    },
-                    reservedSize: 38,
-                  ),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 40,
-                    interval: 5,
-                    getTitlesWidget: (value, meta) {
-                      if (value == 0 || value == meta.max) {
-                        return Container();
-                      }
-                      return Text(
-                        value.toInt().toString(),
-                        style: TextStyle(color: Colors.grey[700], fontSize: 10),
-                        textAlign: TextAlign.left,
-                      );
-                    },
-                  ),
-                ),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              ),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: 5,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
-                    color: Colors.grey[300]!,
-                    strokeWidth: 1,
-                  );
-                },
-              ),
-              borderData: FlBorderData(
-                show: false,
-              ),
-              barGroups: [
-                _buildBarChartGroupData(0, currentData.pain, Colors.orange),
-                _buildBarChartGroupData(1, currentData.hunger, Colors.green),
-                _buildBarChartGroupData(2, currentData.sleep, Colors.blue),
-                _buildBarChartGroupData(3, currentData.discomfort, Colors.purple),
-              ],
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  BarChartGroupData _buildBarChartGroupData(int x, double y, Color color) {
+  BarChartGroupData _buildBarChartGroupData(int x, double y, Color color, double maxY) {
     return BarChartGroupData(
       x: x,
       barRods: [
@@ -554,7 +580,7 @@ class _MainMenuState extends State<MainMenu> {
           borderRadius: const BorderRadius.all(Radius.circular(6)),
           backDrawRodData: BackgroundBarChartRodData(
             show: true,
-            toY: 20,
+            toY: maxY,
             color: Colors.grey[200],
           ),
         ),
@@ -563,85 +589,24 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   Widget _buildHistorySection() {
-    bool isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
-
-    if (isToday) {
-      return Center(
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.lightBlue[400],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.0),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+    return Center(
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.lightBlue[400],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
           ),
-          onPressed: () {
-            _playClickSound();
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
-            );
-          },
-          icon: const Icon(Icons.history, color: Colors.white),
-          label: const Text('View Full Cry History', style: TextStyle(color: Colors.white, fontSize: 16)),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
         ),
-      );
-    } else {
-      final pastData = _getCurrentCryData();
-      final hasData = pastData.pain > 0 || pastData.hunger > 0 || pastData.sleep > 0 || pastData.discomfort > 0;
-
-      if (!hasData) {
-        return Center(
-          child: Text(
-            'No cry data recorded for ${DateFormat.yMMMd().format(_selectedDate)}.',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-        );
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Summary for ${DateFormat.yMMMd().format(_selectedDate)}',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey[700]),
-          ),
-          const SizedBox(height: 12),
-          _buildSummaryRow('Hunger', pastData.hunger, Colors.green),
-          const SizedBox(height: 8),
-          _buildSummaryRow('Pain', pastData.pain, Colors.orange),
-          const SizedBox(height: 8),
-          _buildSummaryRow('Sleep', pastData.sleep, Colors.blue),
-          const SizedBox(height: 8),
-          _buildSummaryRow('Discomfort', pastData.discomfort, Colors.purple),
-        ],
-      );
-    }
-  }
-
-  Widget _buildSummaryRow(String reason, double value, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$reason:',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey[600]),
-        ),
-        const Spacer(),
-        Text(
-          '${value.round()} events',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-        ),
-      ],
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'])),
+          ).then((_) => _refreshCryCounts());
+        },
+        icon: const Icon(Icons.history, color: Colors.white),
+        label: const Text('View Full History', style: TextStyle(color: Colors.white, fontSize: 16)),
+      ),
     );
   }
 
@@ -707,7 +672,6 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   void _showReasonDetails(String reason) {
-    _playClickSound();
     Map<String, String> details;
     switch (reason) {
       case 'Sleeping':
@@ -763,6 +727,6 @@ class _MainMenuState extends State<MainMenu> {
           userId: _user['id'],
         ),
       ),
-    );
+    ).then((_) => _refreshCryCounts());
   }
 }

@@ -88,4 +88,21 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.query('cry_history', where: 'userId = ?', whereArgs: [userId], orderBy: 'id DESC');
   }
+
+  Future<Map<String, int>> getCryReasonCounts(int userId) async {
+    final db = await instance.database;
+    final List<Map<String, dynamic>> result = await db.query(
+      'cry_history',
+      columns: ['output', 'COUNT(*) as count'],
+      where: 'userId = ?',
+      whereArgs: [userId],
+      groupBy: 'output',
+    );
+
+    final Map<String, int> counts = {};
+    for (var row in result) {
+      counts[row['output']] = row['count'] as int;
+    }
+    return counts;
+  }
 }
