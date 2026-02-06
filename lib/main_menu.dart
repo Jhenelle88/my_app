@@ -7,6 +7,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:my_app/about_us_page.dart';
 import 'package:my_app/basic_information_page.dart';
+import 'package:my_app/bluetooth_service.dart' as app_bluetooth_service;
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
@@ -280,6 +281,8 @@ class _MainMenuState extends State<MainMenu> {
               children: [
                 _buildNotificationContent(),
                 const SizedBox(height: 24.0),
+                _buildControlsSection(),
+                const SizedBox(height: 24.0),
                 Card(
                   elevation: 4.0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
@@ -354,6 +357,39 @@ class _MainMenuState extends State<MainMenu> {
             ),
           ),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildControlsSection() {
+    return Card(
+      elevation: 4.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.play_arrow, color: Colors.white),
+              label: const Text('Start', style: TextStyle(color: Colors.white)),
+              onPressed: app_bluetooth_service.BluetoothService().connectedDevice != null ? () => app_bluetooth_service.BluetoothService().sendCommand('start') : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                disabledBackgroundColor: Colors.grey,
+              ),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.stop, color: Colors.white),
+              label: const Text('End', style: TextStyle(color: Colors.white)),
+              onPressed: app_bluetooth_service.BluetoothService().connectedDevice != null ? () => app_bluetooth_service.BluetoothService().sendCommand('end') : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                disabledBackgroundColor: Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:my_app/bluetooth_service.dart' as app_bluetooth_service;
 import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothPage extends StatefulWidget {
@@ -12,18 +13,14 @@ class BluetoothPage extends StatefulWidget {
 }
 
 class _BluetoothPageState extends State<BluetoothPage> {
-  BluetoothDevice? _connectedDevice;
   List<ScanResult> _scanResults = [];
   bool _isScanning = false;
   late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
-  StreamSubscription<BluetoothConnectionState>? _connectionStateSubscription;
 
   @override
   void initState() {
     super.initState();
-
     _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
-      // Now showing all devices, even those without a name.
       if (mounted) {
         setState(() {
           _scanResults = results;
@@ -38,7 +35,6 @@ class _BluetoothPageState extends State<BluetoothPage> {
   void dispose() {
     FlutterBluePlus.stopScan();
     _scanResultsSubscription.cancel();
-    _connectionStateSubscription?.cancel();
     super.dispose();
   }
 
@@ -104,26 +100,11 @@ class _BluetoothPageState extends State<BluetoothPage> {
       setState(() => _isScanning = false);
     }
 
-    _connectionStateSubscription = device.connectionState.listen((state) {
-      if (mounted) {
-        if (state == BluetoothConnectionState.connected) {
-          setState(() { _connectedDevice = device; });
-        } else if (state == BluetoothConnectionState.disconnected) {
-          setState(() { _connectedDevice = null; });
-        }
-      }
-    });
-
     try {
-      await device.connect(timeout: const Duration(seconds: 10));
+      await app_bluetooth_service.BluetoothService().connect(device);
     } catch (e) {
       _showErrorDialog("Connection Error", e.toString());
     }
-  }
-
-  void _disconnectFromDevice() {
-    _connectionStateSubscription?.cancel();
-    _connectedDevice?.disconnect();
   }
 
   void _showErrorDialog(String title, String content) {
@@ -148,7 +129,7 @@ class _BluetoothPageState extends State<BluetoothPage> {
     return ElevatedButton.icon(
       icon: Icon(_isScanning ? Icons.stop : Icons.bluetooth_searching),
       label: Text(_isScanning ? 'Scanning...' : 'Scan for Devices'),
-      onPressed: _connectedDevice != null ? null : _startScan,
+      onPressed: app_bluetooth_service.BluetoothService().connectedDevice != null ? null : _startScan,
       style: ElevatedButton.styleFrom(
         backgroundColor: _isScanning ? Colors.grey : Colors.lightBlue[400],
         foregroundColor: Colors.white,
@@ -157,26 +138,33 @@ class _BluetoothPageState extends State<BluetoothPage> {
   }
 
   Widget _buildBody() {
-    if (_connectedDevice != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.bluetooth_connected, size: 80, color: Colors.blue),
-            const SizedBox(height: 20),
-            Text('Connected to:', style: Theme.of(context).textTheme.headlineSmall),
-            Text(_connectedDevice!.platformName.isNotEmpty ? _connectedDevice!.platformName : "Unnamed Device", style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _disconnectFromDevice,
-              child: const Text('Disconnect'),
-            )
-          ],
-        ),
-      );
-    } else {
-      return _buildScanResultsList();
-    }
+    return StreamBuilder<BluetoothDevice?>(
+      stream: app_bluetooth_service.BluetoothService().connectedDeviceStream,
+      initialData: app_bluetooth_service.BluetoothService().connectedDevice,
+      builder: (context, snapshot) {
+        final connectedDevice = snapshot.data;
+        if (connectedDevice != null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.bluetooth_connected, size: 80, color: Colors.blue),
+                const SizedBox(height: 20),
+                Text('Connected to:', style: Theme.of(context).textTheme.headlineSmall),
+                Text(connectedDevice.platformName.isNotEmpty ? connectedDevice.platformName : "Unnamed Device", style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => app_bluetooth_service.BluetoothService().disconnect(),
+                  child: const Text('Disconnect'),
+                )
+              ],
+            ),
+          );
+        } else {
+          return _buildScanResultsList();
+        }
+      },
+    );
   }
 
   Widget _buildScanResultsList() {
