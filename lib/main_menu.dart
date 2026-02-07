@@ -16,6 +16,7 @@ import 'package:my_app/faq_page.dart';
 import 'package:my_app/login_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
 import 'package:my_app/bluetooth_page.dart';
+import 'package:my_app/wifi_connection_page.dart';
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -33,6 +34,7 @@ class _MainMenuState extends State<MainMenu> {
   bool _isMusicPlaying = true;
   late Future<Map<String, int>> _cryCountsFuture;
   DateTime _selectedDate = DateTime.now();
+  String _prediction = 'Hunger';
 
   // Audio Players
   final AudioPlayer _bgmPlayer = AudioPlayer();
@@ -110,6 +112,12 @@ class _MainMenuState extends State<MainMenu> {
     setState(() {
       _selectedDate = newDate;
       _refreshCryCounts();
+    });
+  }
+
+  void _updatePrediction(String newPrediction) {
+    setState(() {
+      _prediction = newPrediction;
     });
   }
 
@@ -258,6 +266,17 @@ class _MainMenuState extends State<MainMenu> {
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.wifi, color: Colors.lightBlue),
+              title: const Text('Wi-Fi Connection'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => WifiConnectionPage(onPredictionReceived: _updatePrediction)),
+                );
+              },
+            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -332,7 +351,7 @@ class _MainMenuState extends State<MainMenu> {
           ),
         ),
         subtitle: Text(
-          'Reason: Hunger',
+          'Reason: $_prediction',
           style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
         ),
         trailing: Icon(
@@ -360,7 +379,7 @@ class _MainMenuState extends State<MainMenu> {
       ),
     );
   }
-  
+
   Widget _buildControlsSection() {
     return Card(
       elevation: 4.0,
