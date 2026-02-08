@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:my_app/database_helper.dart';
@@ -7,8 +8,16 @@ class CryReasonDetailsPage extends StatefulWidget {
   final Map<String, String> details;
   final String? imagePath;
   final int userId;
+  final List<String> segmentPredictions;
 
-  const CryReasonDetailsPage({super.key, required this.reason, required this.details, this.imagePath, required this.userId});
+  const CryReasonDetailsPage({
+    super.key,
+    required this.reason,
+    required this.details,
+    this.imagePath,
+    required this.userId,
+    this.segmentPredictions = const [],
+  });
 
   @override
   State<CryReasonDetailsPage> createState() => _CryReasonDetailsPageState();
@@ -87,11 +96,13 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
       'date': date,
       'output': widget.reason,
       'accuracy': isCorrect ? 'True' : 'False',
+      'segments': jsonEncode(widget.segmentPredictions),
     };
     await DatabaseHelper.instance.insertCryRecord(newRecord);
 
-    // Navigate back or show a confirmation
-    Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -189,41 +200,17 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
                                 ),
                               ),
                               const SizedBox(height: 16.0),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _isExpanded = !_isExpanded;
-                                  });
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue,
-                                    borderRadius: BorderRadius.circular(12.0),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _isExpanded ? 'Hide Results' : 'Check Results Here',
-                                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                                      ),
-                                      if (_isExpanded)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 8.0),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: List.generate(4, (index) => Padding(
-                                              padding: const EdgeInsets.symmetric(vertical: 2.0),
-                                              child: Text('Segment ${index + 1}:', style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                            )),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                              if (widget.segmentPredictions.isNotEmpty)
+                                ExpansionTile(
+                                  title: Text('Check Results Here', style: TextStyle(color: reasonColor, fontWeight: FontWeight.bold)),
+                                  onExpansionChanged: (bool expanded) {
+                                    setState(() {
+                                      _isExpanded = expanded;
+                                    });
+                                  },
+                                  initiallyExpanded: _isExpanded,
+                                  children: widget.segmentPredictions.map((prediction) => ListTile(title: Text(prediction))).toList(),
                                 ),
-                              ),
                               const SizedBox(height: 16.0),
                               ConstrainedBox(
                                 constraints: BoxConstraints(

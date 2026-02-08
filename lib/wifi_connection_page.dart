@@ -11,13 +11,27 @@ class WifiConnectionPage extends StatefulWidget {
   State<WifiConnectionPage> createState() => _WifiConnectionPageState();
 }
 
-class _WifiConnectionPageState extends State<WifiConnectionPage> {
+class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTickerProviderStateMixin {
   final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.1.46:5000');
   String _status = "Select a mode to start";
   bool _isLoading = false;
 
   String _selectedCategory = "hunger";
   final List<String> _categories = ["discomfort", "hunger", "pain", "sleepiness"];
+
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   Future<void> _callApi(Map<String, dynamic> payload) async {
     setState(() {
@@ -26,7 +40,19 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> {
     });
 
     try {
-      final result = await _api.analyzeMode3(payload['category'] ?? '');
+      Map<String, dynamic> result;
+      String mode = payload['mode'] ?? '0';
+
+      switch (mode) {
+        case '1':
+          result = await _api.analyzeMode1();
+          break;
+        case '3':
+          result = await _api.analyzeMode3(payload['category'] ?? '');
+          break;
+        default:
+          throw Exception("Invalid mode");
+      }
 
       if (result.containsKey('error')) {
         throw Exception(result['error']);
@@ -57,80 +83,130 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> {
       appBar: AppBar(
         title: const Text('Wi-Fi Cry Analyzer'),
         backgroundColor: Colors.lightBlue[400],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              "Choose Mode:",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-
-            // 🎲 Random Test
-            Row(
-              children: [
-                const Text("Category: "),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: _selectedCategory,
-                    isExpanded: true,
-                    items: _categories
-                        .map((cat) => DropdownMenuItem<String>(
-                              value: cat,
-                              child: Text(cat),
-                            ))
-                        .toList(),
-                    onChanged: _isLoading
-                        ? null
-                        : (val) {
-                            setState(() {
-                              _selectedCategory = val!;
-                            });
-                          },
-                  ),
-                ),
-              ],
-            ),
-            buildButton("🎲 Random WAV Test", {
-              "mode": "3",
-              "category": _selectedCategory
-            }),
-
-            const SizedBox(height: 20),
-            if (_isLoading) const Center(child: CircularProgressIndicator()),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.grey.shade200,
-              ),
-              child: Text(
-                _status,
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Mic Test', icon: Icon(Icons.mic)),
+            Tab(text: 'WAV File Test', icon: Icon(Icons.audiotrack)),
           ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildMode1View(),
+          _buildMode3View(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMode1View() {
+    return _buildCenteredCard(
+      children: [
+        const SizedBox(height: 16.0),
+        const Text(
+          'Analyze a live recording from the Raspberry Pi microphone.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16.0, color: Colors.blueGrey),
+        ),
+        const SizedBox(height: 24.0),
+        _isLoading
+            ? const CircularProgressIndicator()
+            : ElevatedButton.icon(
+                onPressed: () => _callApi({'mode': '1'}),
+                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                label: const Text('Start Analysis', style: TextStyle(color: Colors.white, fontSize: 16)),
+                style: _buttonStyle(),
+              ),
+        _buildResultsCard(),
+      ],
+    );
+  }
+  
+  Widget _buildMode3View() {
+    return _buildCenteredCard(
+      children: [
+        const Text('Analyze a random WAV file from a category.', textAlign: TextAlign.center),
+        const SizedBox(height: 16.0),
+        DropdownButtonFormField<String>(
+          value: _selectedCategory,
+          items: _categories.map((String category) {
+            return DropdownMenuItem<String>(
+              value: category,
+              child: Text(category),
+            );
+          }).toList(),
+          onChanged: (newValue) {
+            setState(() {
+              _selectedCategory = newValue!;
+            });
+          },
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 16.0),
+        _isLoading
+            ? const CircularProgressIndicator()
+            : ElevatedButton(onPressed: () => _callApi({'mode': '3', 'category': _selectedCategory}), child: const Text("Analyze Category"), style: _buttonStyle()),
+        _buildResultsCard(),
+      ],
+    );
+  }
+  
+  Widget _buildCenteredCard({required List<Widget> children}) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [ 
+            Card(
+              elevation: 4.0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                ),
+              ),
+            ),
+          ]
         ),
       ),
     );
   }
 
-  Widget buildButton(String label, Map<String, dynamic> payload) {
+  Widget _buildResultsCard() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            backgroundColor: Colors.lightBlue[400],
-            foregroundColor: Colors.white),
-        onPressed: _isLoading ? null : () => _callApi(payload),
-        child: Text(label),
+      padding: const EdgeInsets.only(top: 24.0),
+      child: Card(
+        elevation: 2.0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Results', style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+              const Divider(),
+              const SizedBox(height: 8.0),
+              _isLoading 
+                ? const Center(child: CircularProgressIndicator()) 
+                : Text(_status, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.0)),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  ButtonStyle _buttonStyle() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: Colors.lightBlue[400],
+       foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
     );
   }
 }

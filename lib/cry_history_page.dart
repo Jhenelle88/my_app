@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:my_app/database_helper.dart';
@@ -53,6 +54,37 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
       _selectedDate = newDate;
       _refreshHistory();
     });
+  }
+
+  void _showSegmentsDialog(String? segmentsJson) {
+    if (segmentsJson == null || segmentsJson.isEmpty) return;
+
+    final segments = jsonDecode(segmentsJson) as List<dynamic>;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Segment Predictions'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: segments.length,
+              itemBuilder: (context, index) {
+                return ListTile(title: Text(segments[index].toString()));
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -157,6 +189,11 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                               DataCell(Text(record['output'])),
                               DataCell(Text(record['accuracy'], style: TextStyle(color: record['accuracy'] == 'True' ? Colors.green : Colors.red))),
                             ],
+                            onSelectChanged: (selected) {
+                              if (selected ?? false) {
+                                _showSegmentsDialog(record['segments']);
+                              }
+                            },
                           );
                         }).toList(),
                       ),

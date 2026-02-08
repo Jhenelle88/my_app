@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class CryAnalyzer {
-  final String baseUrl;
+  final String baseUrl; // e.g., "http://192.168.1.46:5000"
 
   CryAnalyzer({required this.baseUrl});
 

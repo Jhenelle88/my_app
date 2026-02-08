@@ -17,7 +17,7 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final path = join(documentsDirectory.path, 'app_database.db');
-    return await openDatabase(path, version: 4, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    return await openDatabase(path, version: 5, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -45,6 +45,7 @@ class DatabaseHelper {
         date TEXT NOT NULL,
         output TEXT NOT NULL,
         accuracy TEXT NOT NULL,
+        segments TEXT,
         FOREIGN KEY (userId) REFERENCES users (id)
       )
     ''');
@@ -61,7 +62,14 @@ class DatabaseHelper {
       try {
         await db.execute('ALTER TABLE cry_history ADD COLUMN date TEXT NOT NULL DEFAULT \'\'');
       } catch (e) {
-        // May fail if the column already exists during development hot restarts
+        // May fail if the column already exists
+      }
+    }
+    if (oldVersion < 5) {
+       try {
+        await db.execute('ALTER TABLE cry_history ADD COLUMN segments TEXT');
+      } catch (e) {
+        // May fail if the column already exists
       }
     }
   }

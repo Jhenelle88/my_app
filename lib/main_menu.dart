@@ -33,6 +33,7 @@ class _MainMenuState extends State<MainMenu> {
   late Future<Map<String, int>> _cryCountsFuture;
   DateTime _selectedDate = DateTime.now();
   String _prediction = 'Hunger';
+  List<String> _segmentPredictions = [];
 
   final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.1.46:5000');
 
@@ -110,7 +111,12 @@ class _MainMenuState extends State<MainMenu> {
       }
 
       final prediction = result['prediction']?.toLowerCase();
-      _updatePrediction(result['prediction'] ?? 'Unknown');
+      final segments = result['segment_logs'] as List<dynamic>?; // Corrected to segment_logs
+
+      setState(() {
+        _prediction = result['prediction'] ?? 'Unknown';
+        _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
+      });
 
       String? reason;
       String? imagePath;
@@ -147,6 +153,7 @@ class _MainMenuState extends State<MainMenu> {
             details: const {},
             imagePath: imagePath!,
             userId: _user['id'],
+            segmentPredictions: _segmentPredictions,
           ),
         ),
       ).then((_) {
@@ -396,19 +403,7 @@ class _MainMenuState extends State<MainMenu> {
             _isNotificationExpanded = expanded;
           });
         },
-        children: const <Widget>[
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Column(
-              children: [
-                ListTile(title: Text('Segment: ')),
-                ListTile(title: Text('Segment: ')),
-                ListTile(title: Text('Segment: ')),
-                ListTile(title: Text('Segment: ')),
-              ],
-            ),
-          ),
-        ],
+        children: _segmentPredictions.map((segment) => ListTile(title: Text(segment))).toList(),
       ),
     );
   }
@@ -821,6 +816,7 @@ class _MainMenuState extends State<MainMenu> {
           reason: reason,
           details: details,
           userId: _user['id'],
+          segmentPredictions: _segmentPredictions,
         ),
       ),
     ).then((_) => _refreshCryCounts());
