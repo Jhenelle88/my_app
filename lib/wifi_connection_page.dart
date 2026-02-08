@@ -12,52 +12,40 @@ class WifiConnectionPage extends StatefulWidget {
 }
 
 class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTickerProviderStateMixin {
-  final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.100.186:5000');
-  String _status = 'Not connected';
-  String _results = '';
+  final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.1.46:5000');
+  String _status = "Select a mode to start";
   bool _isLoading = false;
 
-  late TabController _tabController;
-  final _filePathController = TextEditingController();
-  final _nFilesController = TextEditingController(text: '1');
-  String? _selectedCategory = "hunger";
+  String _selectedCategory = "hunger";
   final List<String> _categories = ["discomfort", "hunger", "pain", "sleepiness"];
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
+  final _filePathController = TextEditingController();
 
   @override
   void dispose() {
-    _tabController.dispose();
     _filePathController.dispose();
-    _nFilesController.dispose();
     super.dispose();
   }
 
-  Future<void> _callApi(int mode) async {
+  Future<void> _callApi(Map<String, dynamic> payload) async {
     setState(() {
       _isLoading = true;
-      _status = 'Analyzing...';
-      _results = '';
+      _status = 'Processing...';
     });
 
     try {
       Map<String, dynamic> result;
+      String mode = payload['mode'] ?? '0';
+
       switch (mode) {
-        case 1:
+        case '1':
           result = await _api.analyzeMode1();
           break;
-        case 2:
-          result = await _api.analyzeMode2(_filePathController.text);
+        case '2':
+          result = await _api.analyzeMode2(payload['file_path'] ?? '');
           break;
-        case 3:
-          result = await _api.analyzeMode3(_selectedCategory!);
-          break;
-        case 4:
-          result = await _api.analyzeMode4(int.tryParse(_nFilesController.text) ?? 1);
+        case '3':
+          result = await _api.analyzeMode3(payload['category'] ?? '');
           break;
         default:
           throw Exception("Invalid mode");
@@ -66,22 +54,21 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTick
       if (result.containsKey('error')) {
         throw Exception(result['error']);
       }
-      
-      if (mode != 4) {
-        final prediction = result['prediction'] ?? 'N/A';
-        widget.onPredictionReceived(prediction);
-      }
+
+      final prediction = result['prediction'] ?? 'N/A';
+      widget.onPredictionReceived(prediction);
       
       setState(() {
-        _status = 'Success';
         JsonEncoder encoder = const JsonEncoder.withIndent('  ');
-        _results = encoder.convert(result);
-        _isLoading = false;
+        _status = encoder.convert(result);
       });
 
     } catch (e) {
       setState(() {
         _status = 'Error: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
         _isLoading = false;
       });
     }
@@ -91,172 +78,100 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTick
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Wi-Fi Connection'),
+        title: const Text('Wi-Fi Cry Analyzer'),
         backgroundColor: Colors.lightBlue[400],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Mic', icon: Icon(Icons.mic)),
-            Tab(text: 'File', icon: Icon(Icons.insert_drive_file)),
-            Tab(text: 'Category', icon: Icon(Icons.category)),
-            Tab(text: 'Batch', icon: Icon(Icons.science)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              "Choose Mode:",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+
+            // 🎤 Mic Test
+            buildButton("🎤 Mic Test", {"mode": "1"}),
+
+            const SizedBox(height: 20),
+
+            // 🎲 Random Test
+            Row(
+              children: [
+                const Text("Category: "),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButton<String>(
+                    value: _selectedCategory,
+                    isExpanded: true,
+                    items: _categories
+                        .map((cat) => DropdownMenuItem<String>(
+                              value: cat,
+                              child: Text(cat),
+                            ))
+                        .toList(),
+                    onChanged: _isLoading
+                        ? null
+                        : (val) {
+                            setState(() {
+                              _selectedCategory = val!;
+                            });
+                          },
+                  ),
+                ),
+              ],
+            ),
+            buildButton("🎲 Random WAV Test", {
+              "mode": "3",
+              "category": _selectedCategory
+            }),
+
+            const SizedBox(height: 20),
+
+            // 📂 Specific File Test
+            TextField(
+              controller: _filePathController,
+              decoration: const InputDecoration(
+                labelText: "File path on Raspberry Pi",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            buildButton("📂 Specific File Test", {
+              "mode": "2",
+              "file_path": _filePathController.text.trim(),
+            }),
+
+            const SizedBox(height: 20),
+            if (_isLoading) const Center(child: CircularProgressIndicator()),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.grey.shade200,
+              ),
+              child: Text(
+                _status,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildMode1View(),
-          _buildMode2View(),
-          _buildMode3View(),
-          _buildMode4View(),
-        ],
-      ),
     );
   }
 
-  Widget _buildMode1View() {
-    return _buildCenteredCard(
-      children: [
-        const Icon(Icons.wifi, size: 64, color: Colors.lightBlue),
-        const SizedBox(height: 16.0),
-        const Text(
-          'Analyze a live recording from the Raspberry Pi microphone.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16.0, color: Colors.blueGrey),
-        ),
-        const SizedBox(height: 24.0),
-        _isLoading
-            ? const CircularProgressIndicator()
-            : ElevatedButton.icon(
-                onPressed: () => _callApi(1),
-                icon: const Icon(Icons.play_arrow, color: Colors.white),
-                label: const Text('Start Analysis', style: TextStyle(color: Colors.white, fontSize: 16)),
-                style: _buttonStyle(),
-              ),
-        _buildResultsCard(),
-      ],
-    );
-  }
-  
-  Widget _buildMode2View() {
-    return _buildCenteredCard(
-      children: [
-        const Text('Analyze a specific WAV file on the Pi.', textAlign: TextAlign.center),
-        const SizedBox(height: 16.0),
-        TextField(
-          controller: _filePathController,
-          decoration: const InputDecoration(labelText: 'Enter file path', border: OutlineInputBorder()),
-        ),
-        const SizedBox(height: 16.0),
-        _isLoading
-            ? const CircularProgressIndicator()
-            : ElevatedButton(onPressed: () => _callApi(2), child: const Text("Analyze File"), style: _buttonStyle()),
-        _buildResultsCard(),
-      ],
-    );
-  }
-
-  Widget _buildMode3View() {
-    return _buildCenteredCard(
-      children: [
-        const Text('Analyze a random WAV file from a category.', textAlign: TextAlign.center),
-        const SizedBox(height: 16.0),
-        DropdownButtonFormField<String>(
-          value: _selectedCategory,
-          items: _categories.map((String category) {
-            return DropdownMenuItem<String>(
-              value: category,
-              child: Text(category),
-            );
-          }).toList(),
-          onChanged: (newValue) {
-            setState(() {
-              _selectedCategory = newValue;
-            });
-          },
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        const SizedBox(height: 16.0),
-        _isLoading
-            ? const CircularProgressIndicator()
-            : ElevatedButton(onPressed: () => _callApi(3), child: const Text("Analyze Category"), style: _buttonStyle()),
-        _buildResultsCard(),
-      ],
-    );
-  }
-  
-  Widget _buildMode4View() {
-    return _buildCenteredCard(
-      children: [
-        const Text('Run a batch test with N files from each category.', textAlign: TextAlign.center),
-        const SizedBox(height: 16.0),
-        TextField(
-          controller: _nFilesController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Number of files per category', border: OutlineInputBorder()),
-        ),
-        const SizedBox(height: 16.0),
-        _isLoading
-            ? const CircularProgressIndicator()
-            : ElevatedButton(onPressed: () => _callApi(4), child: const Text("Run Batch Test"), style: _buttonStyle()),
-        _buildResultsCard(),
-      ],
-    );
-  }
-
-  Widget _buildCenteredCard({required List<Widget> children}) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Card(
-          elevation: 4.0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResultsCard() {
-    if (_results.isEmpty && !_isLoading) return const SizedBox.shrink();
+  Widget buildButton(String label, Map<String, dynamic> payload) {
     return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
-      child: Card(
-        elevation: 2.0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Results', style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-              const Divider(),
-              const SizedBox(height: 8.0),
-              Text('Status: $_status', style: const TextStyle(fontSize: 14.0)),
-              const SizedBox(height: 8.0),
-              if (_results.isNotEmpty)
-                Text(_results, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.0)),
-            ],
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+        onPressed: _isLoading ? null : () => _callApi(payload),
+        child: Text(label),
       ),
-    );
-  }
-
-  ButtonStyle _buttonStyle() {
-    return ElevatedButton.styleFrom(
-      backgroundColor: Colors.lightBlue[400],
-       foregroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
     );
   }
 }

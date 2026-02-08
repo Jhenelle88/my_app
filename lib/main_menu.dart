@@ -7,7 +7,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:my_app/about_us_page.dart';
 import 'package:my_app/basic_information_page.dart';
-import 'package:my_app/bluetooth_service.dart' as app_bluetooth_service;
+import 'package:my_app/cry_analyzer_api.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
@@ -35,6 +35,8 @@ class _MainMenuState extends State<MainMenu> {
   late Future<Map<String, int>> _cryCountsFuture;
   DateTime _selectedDate = DateTime.now();
   String _prediction = 'Hunger';
+
+  final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.1.46:5000');
 
   // Audio Players
   final AudioPlayer _bgmPlayer = AudioPlayer();
@@ -119,6 +121,27 @@ class _MainMenuState extends State<MainMenu> {
     setState(() {
       _prediction = newPrediction;
     });
+  }
+
+  Future<void> _analyzeMic() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Analyzing... Please wait.')),
+    );
+    try {
+      final result = await _api.analyzeMode1();
+      if (result.containsKey('error')) {
+        throw Exception(result['error']);
+      }
+      final prediction = result['prediction'] ?? 'N/A';
+      _updatePrediction(prediction);
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Analysis complete: $prediction')),
+      );
+    } catch (e) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
   @override
@@ -266,17 +289,6 @@ class _MainMenuState extends State<MainMenu> {
                 );
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.wifi, color: Colors.lightBlue),
-              title: const Text('Wi-Fi Connection'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => WifiConnectionPage(onPredictionReceived: _updatePrediction)),
-                );
-              },
-            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -386,26 +398,44 @@ class _MainMenuState extends State<MainMenu> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ElevatedButton.icon(
-              icon: const Icon(Icons.play_arrow, color: Colors.white),
-              label: const Text('Start', style: TextStyle(color: Colors.white)),
-              onPressed: app_bluetooth_service.BluetoothService().connectedDevice != null ? () => app_bluetooth_service.BluetoothService().sendCommand('start') : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                disabledBackgroundColor: Colors.grey,
+            Text(
+              'Analyze Cry',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22.0,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueGrey[800],
               ),
             ),
+            const SizedBox(height: 16.0),
             ElevatedButton.icon(
-              icon: const Icon(Icons.stop, color: Colors.white),
-              label: const Text('End', style: TextStyle(color: Colors.white)),
-              onPressed: app_bluetooth_service.BluetoothService().connectedDevice != null ? () => app_bluetooth_service.BluetoothService().sendCommand('end') : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                disabledBackgroundColor: Colors.grey,
+                backgroundColor: Colors.blue,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
               ),
+              onPressed: _analyzeMic,
+              icon: const Icon(Icons.mic, color: Colors.white),
+              label: const Text('Mic Test', style: TextStyle(color: Colors.white, fontSize: 16)),
+            ),
+            const SizedBox(height: 12.0),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => WifiConnectionPage(onPredictionReceived: _updatePrediction)),
+                );
+              },
+              icon: const Icon(Icons.upload_file, color: Colors.white),
+              label: const Text('Upload Cry File', style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
           ],
         ),
