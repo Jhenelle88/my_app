@@ -1,7 +1,6 @@
 
 import 'dart:io';
 import 'dart:math';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -31,15 +30,11 @@ class _MainMenuState extends State<MainMenu> {
   late Map<String, dynamic> _user;
   File? _image;
   bool _isNotificationExpanded = false;
-  bool _isMusicPlaying = true;
   late Future<Map<String, int>> _cryCountsFuture;
   DateTime _selectedDate = DateTime.now();
   String _prediction = 'Hunger';
 
   final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.1.46:5000');
-
-  // Audio Players
-  final AudioPlayer _bgmPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -48,30 +43,7 @@ class _MainMenuState extends State<MainMenu> {
     if (_user['imagePath'] != null) {
       _image = File(_user['imagePath']);
     }
-    // Start background music on loop
-    _bgmPlayer.play(AssetSource('audio/graduation_march.mp3'));
-    _bgmPlayer.setReleaseMode(ReleaseMode.loop);
-
     _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(_user['id'], DateFormat.yMMMd().format(_selectedDate));
-  }
-
-  @override
-  void dispose() {
-    // Stop and release audio players to free resources
-    _bgmPlayer.stop();
-    _bgmPlayer.dispose();
-    super.dispose();
-  }
-
-  void _toggleMusic() {
-    if (_isMusicPlaying) {
-      _bgmPlayer.pause();
-    } else {
-      _bgmPlayer.resume();
-    }
-    setState(() {
-      _isMusicPlaying = !_isMusicPlaying;
-    });
   }
 
   void _updateUser(Map<String, dynamic> newUser) {
@@ -125,20 +97,65 @@ class _MainMenuState extends State<MainMenu> {
 
   Future<void> _analyzeMic() async {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Analyzing... Please wait.')),
+      const SnackBar(content: Text('Analyzing... Please wait.'), duration: Duration(seconds: 10)),
     );
+
     try {
       final result = await _api.analyzeMode1();
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
       if (result.containsKey('error')) {
         throw Exception(result['error']);
       }
-      final prediction = result['prediction'] ?? 'N/A';
-      _updatePrediction(prediction);
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Analysis complete: $prediction')),
-      );
+
+      final prediction = result['prediction']?.toLowerCase();
+      _updatePrediction(result['prediction'] ?? 'Unknown');
+
+      String? reason;
+      String? imagePath;
+
+      switch (prediction) {
+        case 'sleepiness':
+          reason = 'Sleeping';
+          imagePath = 'assets/sleeping.png';
+          break;
+        case 'hunger':
+          reason = 'Hunger';
+          imagePath = 'assets/hunger.png';
+          break;
+        case 'pain':
+          reason = 'Pain';
+          imagePath = 'assets/pain.png';
+          break;
+        case 'discomfort':
+          reason = 'Discomfort';
+          imagePath = 'assets/discomfort.png';
+          break;
+        default:
+           ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Analysis result: ${result['prediction']}')),
+          );
+          return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CryReasonDetailsPage(
+            reason: reason!,
+            details: const {},
+            imagePath: imagePath!,
+            userId: _user['id'],
+          ),
+        ),
+      ).then((_) {
+        _refreshCryCounts();
+      });
+
     } catch (e) {
-       ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
     }
@@ -168,13 +185,6 @@ class _MainMenuState extends State<MainMenu> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(_isMusicPlaying ? Icons.music_note : Icons.music_off),
-            tooltip: 'Toggle Music',
-            onPressed: _toggleMusic,
-          ),
-        ],
       ),
       drawer: Drawer(
         child: ListView(
@@ -286,6 +296,17 @@ class _MainMenuState extends State<MainMenu> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const BluetoothPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.wifi, color: Colors.lightBlue),
+              title: const Text('Wi-Fi Connection'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => WifiConnectionPage(onPredictionReceived: _updatePrediction)),
                 );
               },
             ),

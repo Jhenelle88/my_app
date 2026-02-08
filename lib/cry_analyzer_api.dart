@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class CryAnalyzer {
-  final String baseUrl; // e.g., "http://192.168.100.186:5000"
+  final String baseUrl;
 
   CryAnalyzer({required this.baseUrl});
 
@@ -11,19 +11,9 @@ class CryAnalyzer {
     return _postAnalyze({"mode": "1"});
   }
 
-  Future<Map<String, dynamic>> analyzeMode2(String filePath) async {
-    // Specific file (mode 2)
-    return _postAnalyze({"mode": "2", "file_path": filePath});
-  }
-
   Future<Map<String, dynamic>> analyzeMode3(String category) async {
     // Random file from category (mode 3)
     return _postAnalyze({"mode": "3", "category": category});
-  }
-
-  Future<Map<String, dynamic>> analyzeMode4(int nFiles) async {
-    // Batch N files per category (mode 4)
-    return _postAnalyze({"mode": "4", "n_files": nFiles});
   }
 
   Future<Map<String, dynamic>> _postAnalyze(Map<String, dynamic> body) async {

@@ -11,21 +11,13 @@ class WifiConnectionPage extends StatefulWidget {
   State<WifiConnectionPage> createState() => _WifiConnectionPageState();
 }
 
-class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTickerProviderStateMixin {
+class _WifiConnectionPageState extends State<WifiConnectionPage> {
   final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.1.46:5000');
   String _status = "Select a mode to start";
   bool _isLoading = false;
 
   String _selectedCategory = "hunger";
   final List<String> _categories = ["discomfort", "hunger", "pain", "sleepiness"];
-
-  final _filePathController = TextEditingController();
-
-  @override
-  void dispose() {
-    _filePathController.dispose();
-    super.dispose();
-  }
 
   Future<void> _callApi(Map<String, dynamic> payload) async {
     setState(() {
@@ -34,22 +26,7 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTick
     });
 
     try {
-      Map<String, dynamic> result;
-      String mode = payload['mode'] ?? '0';
-
-      switch (mode) {
-        case '1':
-          result = await _api.analyzeMode1();
-          break;
-        case '2':
-          result = await _api.analyzeMode2(payload['file_path'] ?? '');
-          break;
-        case '3':
-          result = await _api.analyzeMode3(payload['category'] ?? '');
-          break;
-        default:
-          throw Exception("Invalid mode");
-      }
+      final result = await _api.analyzeMode3(payload['category'] ?? '');
 
       if (result.containsKey('error')) {
         throw Exception(result['error']);
@@ -92,11 +69,6 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTick
             ),
             const SizedBox(height: 12),
 
-            // 🎤 Mic Test
-            buildButton("🎤 Mic Test", {"mode": "1"}),
-
-            const SizedBox(height: 20),
-
             // 🎲 Random Test
             Row(
               children: [
@@ -129,22 +101,6 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTick
             }),
 
             const SizedBox(height: 20),
-
-            // 📂 Specific File Test
-            TextField(
-              controller: _filePathController,
-              decoration: const InputDecoration(
-                labelText: "File path on Raspberry Pi",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            buildButton("📂 Specific File Test", {
-              "mode": "2",
-              "file_path": _filePathController.text.trim(),
-            }),
-
-            const SizedBox(height: 20),
             if (_isLoading) const Center(child: CircularProgressIndicator()),
             const SizedBox(height: 20),
             Container(
@@ -168,7 +124,10 @@ class _WifiConnectionPageState extends State<WifiConnectionPage> with SingleTick
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: ElevatedButton(
-        style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+        style: ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(50),
+            backgroundColor: Colors.lightBlue[400],
+            foregroundColor: Colors.white),
         onPressed: _isLoading ? null : () => _callApi(payload),
         child: Text(label),
       ),
