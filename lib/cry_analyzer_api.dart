@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class CryAnalyzer {
   final String baseUrl; // e.g., "http://192.168.1.46:5000"
@@ -14,6 +16,30 @@ class CryAnalyzer {
   Future<Map<String, dynamic>> analyzeMode3(String category) async {
     // Random file from category (mode 3)
     return _postAnalyze({"mode": "3", "category": category});
+  }
+
+  Future<Map<String, dynamic>> uploadCryFile(File file) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse("$baseUrl/upload"),
+      );
+      request.files.add(await http.MultipartFile.fromPath(
+        'file',
+        file.path,
+        contentType: MediaType('audio', 'wav'),
+      ));
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        final respStr = await response.stream.bytesToString();
+        return jsonDecode(respStr);
+      } else {
+        return {"error": "Server returned ${response.statusCode}"};
+      }
+    } catch (e) {
+      return {"error": e.toString()};
+    }
   }
 
   Future<Map<String, dynamic>> _postAnalyze(Map<String, dynamic> body) async {

@@ -1,6 +1,7 @@
 
 import 'dart:io';
 import 'dart:math';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -15,7 +16,6 @@ import 'package:my_app/faq_page.dart';
 import 'package:my_app/login_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
 import 'package:my_app/bluetooth_page.dart';
-import 'package:my_app/wifi_connection_page.dart';
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -168,6 +168,86 @@ class _MainMenuState extends State<MainMenu> {
     }
   }
 
+  Future<void> _analyzeFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['wav'],
+    );
+
+    if (result != null) {
+      File file = File(result.files.single.path!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Analyzing file...'), duration: Duration(seconds: 10)),
+      );
+
+      try {
+        final result = await _api.uploadCryFile(file);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        if (result.containsKey('error')) {
+          throw Exception(result['error']);
+        }
+
+        final prediction = result['prediction']?.toLowerCase();
+        final segments = result['segment_logs'] as List<dynamic>?;
+
+        setState(() {
+          _prediction = result['prediction'] ?? 'Unknown';
+          _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
+        });
+
+        String? reason;
+        String? imagePath;
+
+        switch (prediction) {
+          case 'sleepiness':
+            reason = 'Sleeping';
+            imagePath = 'assets/sleeping.png';
+            break;
+          case 'hunger':
+            reason = 'Hunger';
+            imagePath = 'assets/hunger.png';
+            break;
+          case 'pain':
+            reason = 'Pain';
+            imagePath = 'assets/pain.png';
+            break;
+          case 'discomfort':
+            reason = 'Discomfort';
+            imagePath = 'assets/discomfort.png';
+            break;
+          default:
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Analysis result: ${result['prediction']}')),
+            );
+            return;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CryReasonDetailsPage(
+              reason: reason!,
+              details: const {},
+              imagePath: imagePath!,
+              userId: _user['id'],
+              segmentPredictions: _segmentPredictions,
+            ),
+          ),
+        ).then((_) {
+          _refreshCryCounts();
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } else {
+      // User canceled the picker
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,7 +258,7 @@ class _MainMenuState extends State<MainMenu> {
         title: Row(
           children: [
             Image.asset(
-              'assets/APP.png',
+              'assets/LOGO.png',
               height: 40,
             ),
             const SizedBox(width: 8),
@@ -303,17 +383,6 @@ class _MainMenuState extends State<MainMenu> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const BluetoothPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.wifi, color: Colors.lightBlue),
-              title: const Text('Wi-Fi Connection'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => WifiConnectionPage(onPredictionReceived: _updatePrediction)),
                 );
               },
             ),
@@ -444,12 +513,7 @@ class _MainMenuState extends State<MainMenu> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => WifiConnectionPage(onPredictionReceived: _updatePrediction)),
-                );
-              },
+              onPressed: _analyzeFile,
               icon: const Icon(Icons.upload_file, color: Colors.white),
               label: const Text('Upload Cry File', style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
