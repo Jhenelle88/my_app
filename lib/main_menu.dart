@@ -1,20 +1,19 @@
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:my_app/about_us_page.dart';
-import 'package:my_app/basic_information_page.dart';
-import 'package:my_app/cry_analyzer_api.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
 import 'package:my_app/database_helper.dart';
 import 'package:my_app/faq_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
-import 'package:my_app/bluetooth_page.dart';
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -34,7 +33,7 @@ class _MainMenuState extends State<MainMenu> {
   String _prediction = 'Hunger';
   List<String> _segmentPredictions = [];
 
-  final CryAnalyzer _api = CryAnalyzer(baseUrl: 'http://192.168.1.46:5000');
+  final String serverUrl = 'http://192.168.12.153:5000';
 
   @override
   void initState() {
@@ -43,12 +42,14 @@ class _MainMenuState extends State<MainMenu> {
     if (_user['imagePath'] != null) {
       _image = File(_user['imagePath']);
     }
-    _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(_user['id'], DateFormat.yMMMd().format(_selectedDate));
+    _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(
+        _user['id'], DateFormat.yMMMd().format(_selectedDate));
   }
 
   void _refreshCryCounts() {
     setState(() {
-      _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(_user['id'], DateFormat.yMMMd().format(_selectedDate));
+      _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(
+          _user['id'], DateFormat.yMMMd().format(_selectedDate));
     });
   }
 
@@ -69,7 +70,8 @@ class _MainMenuState extends State<MainMenu> {
 
   void _changeDate(int days) {
     final newDate = _selectedDate.add(Duration(days: days));
-    if (newDate.isAfter(DateTime.now()) && !DateUtils.isSameDay(newDate, DateTime.now())) {
+    if (newDate.isAfter(DateTime.now()) &&
+        !DateUtils.isSameDay(newDate, DateTime.now())) {
       return;
     }
     setState(() {
@@ -78,32 +80,18 @@ class _MainMenuState extends State<MainMenu> {
     });
   }
 
-  void _updatePrediction(String newPrediction) {
-    setState(() {
-      _prediction = newPrediction;
-    });
-  }
+  void _handleAnalysisResponse(http.Response response) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-  Future<void> _analyzeMic() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Analyzing... Please wait.'), duration: Duration(seconds: 10)),
-    );
-
-    try {
-      final result = await _api.analyzeMode1();
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-      if (result.containsKey('error')) {
-        throw Exception(result['error']);
-      }
-
-      final prediction = result['prediction']?.toLowerCase();
-      final segments = result['segment_logs'] as List<dynamic>?; // Corrected to segment_logs
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final prediction = data['prediction']?.toString().toLowerCase();
+      final segments = data['segment_logs'] as List<dynamic>?;
 
       setState(() {
-        _prediction = result['prediction'] ?? 'Unknown';
-        _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
+        _prediction = data['prediction'] ?? 'Unknown';
+        _segmentPredictions =
+            segments?.map((s) => s.toString()).toList() ?? [];
       });
 
       String? reason;
@@ -127,8 +115,9 @@ class _MainMenuState extends State<MainMenu> {
           imagePath = 'assets/discomfort.png';
           break;
         default:
-           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Analysis result: ${result['prediction']}')),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Analysis result: ${data['prediction']}')),
           );
           return;
       }
@@ -147,12 +136,40 @@ class _MainMenuState extends State<MainMenu> {
       ).then((_) {
         _refreshCryCounts();
       });
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(
+            content:
+                Text('Server Error: ${response.statusCode}\n${response.body}')),
       );
+    }
+  }
+
+  void _handleAnalysisError(dynamic error) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${error.toString()}')),
+    );
+  }
+
+  Future<void> _analyzeMic() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Analyzing... Please wait.'),
+          duration: Duration(seconds: 15)),
+    );
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$serverUrl/analyze/mic'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      _handleAnalysisResponse(response);
+    } catch (e) {
+      _handleAnalysisError(e);
     }
   }
 
@@ -165,71 +182,24 @@ class _MainMenuState extends State<MainMenu> {
     if (result != null) {
       File file = File(result.files.single.path!);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Analyzing file...'), duration: Duration(seconds: 10)),
+        const SnackBar(
+            content: Text('Analyzing file...'),
+            duration: Duration(seconds: 15)),
       );
 
       try {
-        final result = await _api.uploadCryFile(file);
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-        if (result.containsKey('error')) {
-          throw Exception(result['error']);
-        }
-
-        final prediction = result['prediction']?.toLowerCase();
-        final segments = result['segment_logs'] as List<dynamic>?;
-
-        setState(() {
-          _prediction = result['prediction'] ?? 'Unknown';
-          _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
-        });
-
-        String? reason;
-        String? imagePath;
-
-        switch (prediction) {
-          case 'sleepiness':
-            reason = 'Sleeping';
-            imagePath = 'assets/sleeping.png';
-            break;
-          case 'hunger':
-            reason = 'Hunger';
-            imagePath = 'assets/hunger.png';
-            break;
-          case 'pain':
-            reason = 'Pain';
-            imagePath = 'assets/pain.png';
-            break;
-          case 'discomfort':
-            reason = 'Discomfort';
-            imagePath = 'assets/discomfort.png';
-            break;
-          default:
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Analysis result: ${result['prediction']}')),
-            );
-            return;
-        }
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CryReasonDetailsPage(
-              reason: reason!,
-              details: const {},
-              imagePath: imagePath!,
-              userId: _user['id'],
-              segmentPredictions: _segmentPredictions,
-            ),
-          ),
-        ).then((_) {
-          _refreshCryCounts();
-        });
-      } catch (e) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+        var request =
+            http.MultipartRequest('POST', Uri.parse('$serverUrl/analyze/file'));
+        request.files.add(
+          await http.MultipartFile.fromPath('file', file.path),
         );
+        var streamedResponse =
+            await request.send().timeout(const Duration(seconds: 15));
+        var response = await http.Response.fromStream(streamedResponse);
+
+        _handleAnalysisResponse(response);
+      } catch (e) {
+        _handleAnalysisError(e);
       }
     } else {
       // User canceled the picker
@@ -289,13 +259,16 @@ class _MainMenuState extends State<MainMenu> {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.science_outlined, color: Colors.lightBlue),
+              leading:
+                  const Icon(Icons.science_outlined, color: Colors.lightBlue),
               title: const Text('Cry Behavior (Testing)'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => CryBehaviorTestingPage(userId: _user['id'])),
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          CryBehaviorTestingPage(userId: _user['id'])),
                 ).then((_) => _refreshCryCounts());
               },
             ),
@@ -306,7 +279,9 @@ class _MainMenuState extends State<MainMenu> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'], initialDate: _selectedDate)),
+                  MaterialPageRoute(
+                      builder: (context) => CryHistoryPage(
+                          userId: _user['id'], initialDate: _selectedDate)),
                 ).then((_) => _refreshCryCounts());
               },
             ),
@@ -324,7 +299,8 @@ class _MainMenuState extends State<MainMenu> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const TermsAndConditionsPage()),
+                  MaterialPageRoute(
+                      builder: (context) => const TermsAndConditionsPage()),
                 );
               },
             ),
@@ -366,7 +342,8 @@ class _MainMenuState extends State<MainMenu> {
                 const SizedBox(height: 24.0),
                 Card(
                   elevation: 4.0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16.0)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -383,7 +360,8 @@ class _MainMenuState extends State<MainMenu> {
                 const SizedBox(height: 24.0),
                 Card(
                   elevation: 4.0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16.0)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: _buildReasonForCrySection(),
@@ -403,7 +381,8 @@ class _MainMenuState extends State<MainMenu> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       color: Colors.red[100],
       child: ExpansionTile(
-        leading: Icon(Icons.notifications_active, color: Colors.red[800], size: 32.0),
+        leading:
+            Icon(Icons.notifications_active, color: Colors.red[800], size: 32.0),
         title: Text(
           'Baby is Crying!',
           style: TextStyle(
@@ -417,7 +396,9 @@ class _MainMenuState extends State<MainMenu> {
           style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
         ),
         trailing: Icon(
-          _isNotificationExpanded ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+          _isNotificationExpanded
+              ? Icons.arrow_drop_up
+              : Icons.arrow_drop_down,
           color: Colors.red[800],
         ),
         onExpansionChanged: (bool expanded) {
@@ -425,7 +406,9 @@ class _MainMenuState extends State<MainMenu> {
             _isNotificationExpanded = expanded;
           });
         },
-        children: _segmentPredictions.map((segment) => ListTile(title: Text(segment))).toList(),
+        children: _segmentPredictions
+            .map((segment) => ListTile(title: Text(segment)))
+            .toList(),
       ),
     );
   }
@@ -452,23 +435,29 @@ class _MainMenuState extends State<MainMenu> {
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0, vertical: 12.0),
               ),
               onPressed: _analyzeMic,
               icon: const Icon(Icons.mic, color: Colors.white),
-              label: const Text('Mic Test', style: TextStyle(color: Colors.white, fontSize: 16)),
+              label: const Text('Mic Test',
+                  style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
             const SizedBox(height: 12.0),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0, vertical: 12.0),
               ),
               onPressed: _analyzeFile,
               icon: const Icon(Icons.upload_file, color: Colors.white),
-              label: const Text('Upload Cry File', style: TextStyle(color: Colors.white, fontSize: 16)),
+              label: const Text('Upload Cry File',
+                  style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
           ],
         ),
@@ -498,22 +487,25 @@ class _MainMenuState extends State<MainMenu> {
                 ),
               ),
               const SizedBox(height: 24.0),
-              const Center(child: Text('No cry data to display for this date.')),
+              const Center(
+                  child: Text('No cry data to display for this date.')),
             ],
           );
         }
 
         final cryCounts = snapshot.data!;
-        final double maxCount = (cryCounts.values.isEmpty ? 0 : cryCounts.values.reduce(max)).toDouble();
-        
+        final double maxCount =
+            (cryCounts.values.isEmpty ? 0 : cryCounts.values.reduce(max))
+                .toDouble();
+
         double getNiceMaxValue(double maxValue) {
-            if (maxValue <= 0) return 10;
-            final exponent = (log(maxValue) / ln10).floor();
-            final powerOf10 = pow(10, exponent);
-            final msd = (maxValue / powerOf10).ceil();
-            if (msd > 5) return 10 * powerOf10.toDouble();
-            if (msd > 2) return 5 * powerOf10.toDouble();
-            return 2 * powerOf10.toDouble();
+          if (maxValue <= 0) return 10;
+          final exponent = (log(maxValue) / ln10).floor();
+          final powerOf10 = pow(10, exponent);
+          final msd = (maxValue / powerOf10).ceil();
+          if (msd > 5) return 10 * powerOf10.toDouble();
+          if (msd > 2) return 5 * powerOf10.toDouble();
+          return 2 * powerOf10.toDouble();
         }
 
         final double maxY = getNiceMaxValue(maxCount);
@@ -546,7 +538,9 @@ class _MainMenuState extends State<MainMenu> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          isToday ? 'Today' : DateFormat.yMMMd().format(_selectedDate),
+                          isToday
+                              ? 'Today'
+                              : DateFormat.yMMMd().format(_selectedDate),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -554,7 +548,8 @@ class _MainMenuState extends State<MainMenu> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.calendar_today, color: Colors.lightBlue, size: 20),
+                        const Icon(Icons.calendar_today,
+                            color: Colors.lightBlue, size: 20),
                       ],
                     ),
                   ),
@@ -637,16 +632,19 @@ class _MainMenuState extends State<MainMenu> {
                           if (value > meta.max) {
                             return Container();
                           }
-                           return Text(
+                          return Text(
                             value.toInt().toString(),
-                            style: TextStyle(color: Colors.grey[700], fontSize: 10),
+                            style: TextStyle(
+                                color: Colors.grey[700], fontSize: 10),
                             textAlign: TextAlign.left,
                           );
                         },
                       ),
                     ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: FlGridData(
                     show: true,
@@ -663,10 +661,17 @@ class _MainMenuState extends State<MainMenu> {
                     show: false,
                   ),
                   barGroups: [
-                    _buildBarChartGroupData(0, cryCounts['Pain']?.toDouble() ?? 0, Colors.orange, maxY),
-                    _buildBarChartGroupData(1, cryCounts['Hunger']?.toDouble() ?? 0, Colors.green, maxY),
-                    _buildBarChartGroupData(2, cryCounts['Sleeping']?.toDouble() ?? 0, Colors.blue, maxY),
-                    _buildBarChartGroupData(3, cryCounts['Discomfort']?.toDouble() ?? 0, Colors.purple, maxY),
+                    _buildBarChartGroupData(
+                        0, cryCounts['Pain']?.toDouble() ?? 0, Colors.orange, maxY),
+                    _buildBarChartGroupData(1,
+                        cryCounts['Hunger']?.toDouble() ?? 0, Colors.green, maxY),
+                    _buildBarChartGroupData(2,
+                        cryCounts['Sleeping']?.toDouble() ?? 0, Colors.blue, maxY),
+                    _buildBarChartGroupData(
+                        3,
+                        cryCounts['Discomfort']?.toDouble() ?? 0,
+                        Colors.purple,
+                        maxY),
                   ],
                 ),
                 swapAnimationDuration: const Duration(milliseconds: 375),
@@ -679,7 +684,8 @@ class _MainMenuState extends State<MainMenu> {
     );
   }
 
-  BarChartGroupData _buildBarChartGroupData(int x, double y, Color color, double maxY) {
+  BarChartGroupData _buildBarChartGroupData(
+      int x, double y, Color color, double maxY) {
     return BarChartGroupData(
       x: x,
       barRods: [
@@ -706,16 +712,20 @@ class _MainMenuState extends State<MainMenu> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
         ),
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'], initialDate: _selectedDate)),
+            MaterialPageRoute(
+                builder: (context) => CryHistoryPage(
+                    userId: _user['id'], initialDate: _selectedDate)),
           ).then((_) => _refreshCryCounts());
         },
         icon: const Icon(Icons.history, color: Colors.white),
-        label: const Text('View Full History', style: TextStyle(color: Colors.white, fontSize: 16)),
+        label: const Text('View Full History',
+            style: TextStyle(color: Colors.white, fontSize: 16)),
       ),
     );
   }
@@ -742,9 +752,11 @@ class _MainMenuState extends State<MainMenu> {
           mainAxisSpacing: 16.0,
           children: [
             _buildReasonButton('Sleeping', Icons.nightlight_round, Colors.blue),
-            _buildReasonButton('Hunger', Icons.restaurant_menu, Colors.green),
+            _buildReasonButton(
+                'Hunger', Icons.restaurant_menu, Colors.green),
             _buildReasonButton('Pain', Icons.healing, Colors.orange),
-            _buildReasonButton('Discomfort', Icons.thermostat, Colors.purple),
+            _buildReasonButton(
+                'Discomfort', Icons.thermostat, Colors.purple),
           ],
         ),
       ],
