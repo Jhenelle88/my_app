@@ -13,7 +13,6 @@ import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
 import 'package:my_app/database_helper.dart';
 import 'package:my_app/faq_page.dart';
-import 'package:my_app/login_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
 import 'package:my_app/bluetooth_page.dart';
 
@@ -45,17 +44,6 @@ class _MainMenuState extends State<MainMenu> {
       _image = File(_user['imagePath']);
     }
     _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(_user['id'], DateFormat.yMMMd().format(_selectedDate));
-  }
-
-  void _updateUser(Map<String, dynamic> newUser) {
-    setState(() {
-      _user = newUser;
-      if (_user['imagePath'] != null) {
-        _image = File(_user['imagePath']);
-      } else {
-        _image = null;
-      }
-    });
   }
 
   void _refreshCryCounts() {
@@ -277,23 +265,27 @@ class _MainMenuState extends State<MainMenu> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            UserAccountsDrawerHeader(
-              accountName: Text(_user['fullName'] ?? 'User Name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              accountEmail: Text(_user['email'] ?? '', style: const TextStyle(fontSize: 14)),
-              currentAccountPicture: CircleAvatar(
-                backgroundImage: _image != null ? FileImage(_image!) : null,
-                backgroundColor: Colors.white,
-                child: _image == null
-                    ? Text(
-                        _user['fullName'] != null && _user['fullName'].isNotEmpty
-                            ? _user['fullName'][0].toUpperCase()
-                            : 'U',
-                        style: TextStyle(fontSize: 40.0, color: Colors.lightBlue[800]),
-                      )
-                    : null,
-              ),
+            DrawerHeader(
               decoration: BoxDecoration(
                 color: Colors.lightBlue[400],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/trans.png',
+                    height: 60,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'CRYCOM',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
             ListTile(
@@ -307,93 +299,54 @@ class _MainMenuState extends State<MainMenu> {
                 ).then((_) => _refreshCryCounts());
               },
             ),
-            const Divider(),
-            ExpansionTile(
-              leading: const Icon(Icons.account_circle, color: Colors.lightBlue),
-              title: const Text('Account'),
-              children: <Widget>[
-                ListTile(
-                  title: const Text('Basic Information'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final updatedUser = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => BasicInformationPage(user: _user),
-                      ),
-                    );
-                    if (updatedUser != null) {
-                      _updateUser(updatedUser);
-                    }
-                  },
-                ),
-                ListTile(
-                  title: const Text('Cry History'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'], initialDate: _selectedDate)),
-                    ).then((_) => _refreshCryCounts());
-                  },
-                ),
-              ],
-            ),
-            ExpansionTile(
-              leading: const Icon(Icons.help, color: Colors.lightBlue),
-              title: const Text('FAQ and Resources'),
-              children: <Widget>[
-                ListTile(
-                  title: const Text('Terms and Conditions'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const TermsAndConditionsPage()),
-                    );
-                  },
-                ),
-                ListTile(
-                  title: const Text('About Us'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AboutUsPage()),
-                    );
-                  },
-                ),
-                ListTile(
-                  title: const Text('FAQs'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const FaqPage()),
-                    );
-                  },
-                ),
-              ],
-            ),
             ListTile(
-              leading: const Icon(Icons.bluetooth, color: Colors.lightBlue),
-              title: const Text('Bluetooth Connection'),
+              leading: const Icon(Icons.history, color: Colors.lightBlue),
+              title: const Text('Cry History'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const BluetoothPage()),
-                );
+                  MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'], initialDate: _selectedDate)),
+                ).then((_) => _refreshCryCounts());
               },
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Log Out', style: TextStyle(color: Colors.red)),
+              title: Text(
+                'FAQ & Resources',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.description, color: Colors.lightBlue),
+              title: const Text('Terms and Conditions'),
               onTap: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                  (Route<dynamic> route) => false,
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TermsAndConditionsPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline, color: Colors.lightBlue),
+              title: const Text('About Us'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AboutUsPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.help_outline, color: Colors.lightBlue),
+              title: const Text('FAQs'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FaqPage()),
                 );
               },
             ),
@@ -716,6 +669,8 @@ class _MainMenuState extends State<MainMenu> {
                     _buildBarChartGroupData(3, cryCounts['Discomfort']?.toDouble() ?? 0, Colors.purple, maxY),
                   ],
                 ),
+                swapAnimationDuration: const Duration(milliseconds: 375),
+                swapAnimationCurve: Curves.easeIn,
               ),
             ),
           ],
