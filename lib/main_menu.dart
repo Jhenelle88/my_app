@@ -1,13 +1,14 @@
 
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:my_app/about_us_page.dart';
+import 'package:my_app/basic_information_page.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
@@ -25,15 +26,20 @@ class MainMenu extends StatefulWidget {
 }
 
 class _MainMenuState extends State<MainMenu> {
+  // --- STATE FROM ORIGINAL APP ---
   late Map<String, dynamic> _user;
   File? _image;
   bool _isNotificationExpanded = false;
   late Future<Map<String, int>> _cryCountsFuture;
   DateTime _selectedDate = DateTime.now();
-  String _prediction = 'Hunger';
   List<String> _segmentPredictions = [];
 
-  final String serverUrl = 'http://192.168.12.153:5000';
+  // --- STATE FOR RASPBERRY PI CONNECTION ---
+  String _serverUrl = '';
+  bool _isLoading = false;
+  String _prediction = 'Hunger'; // Default value
+  String _confidence = '';
+  String _errorMessage = '';
 
   @override
   void initState() {
@@ -45,6 +51,240 @@ class _MainMenuState extends State<MainMenu> {
     _cryCountsFuture = DatabaseHelper.instance.getCryReasonCountsByDate(
         _user['id'], DateFormat.yMMMd().format(_selectedDate));
   }
+
+  // =================================================================
+  // ============ RASPBERRY PI CONNECTION & ANALYSIS LOGIC ===========
+  // =================================================================
+
+  Future<bool> _findServerIP() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = "";
+      _confidence = "";
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Searching for Raspberry Pi...'),
+            duration: Duration(seconds: 4)),
+      );
+    });
+
+    try {
+      final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      socket.broadcastEnabled = true;
+      final broadcastAddr = InternetAddress('255.255.255.255');
+      socket.send(utf8.encode('CRYCOM_DISCOVER'), broadcastAddr, 5001);
+
+      await for (RawSocketEvent event
+          in socket.timeout(const Duration(seconds: 3))) {
+        if (event == RawSocketEvent.read) {
+          Datagram? dg = socket.receive();
+          if (dg != null) {
+            final message = utf8.decode(dg.data);
+            if (message == 'CRYCOM_SERVER') {
+              String discoveredIp = dg.address.address;
+              _serverUrl = 'http://$discoveredIp:5000';
+              print('✅ Found Raspberry Pi at: $_serverUrl');
+              socket.close();
+              return true;
+            }
+          }
+        }
+      }
+      socket.close();
+    } catch (e) {
+      print("Discovery failed: $e");
+    }
+
+    setState(() {
+      _isLoading = false;
+      _showErrorDialog(
+          "Device Not Found",
+          "Could not find Raspberry Pi. Please ensure both your phone and the Pi are on the exact same Wi-Fi network and the Pi's server script is running.",
+          context);
+    });
+    return false;
+  }
+
+  Future<void> _startMicAnalysis() async {
+    bool found = await _findServerIP();
+    if (!found || !mounted) return;
+
+    setState(() {
+      _prediction = "Recording and analyzing...";
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Recording & Analyzing via Pi...'),
+            duration: Duration(seconds: 15)),
+      );
+    });
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_serverUrl/analyze/mic'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      _handleServerResponse(response.statusCode, response.body, context);
+    } catch (e) {
+      _handleNetworkError(e, context);
+    }
+  }
+
+  Future<void> _startFileAnalysis() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['wav'],
+    );
+
+    if (result == null || result.files.single.path == null) {
+      return; 
+    }
+
+    File audioFile = File(result.files.single.path!);
+
+    bool found = await _findServerIP();
+    if (!found || !mounted) return;
+
+    setState(() {
+      _prediction = "Uploading and analyzing file...";
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Uploading & Analyzing via Pi...'),
+            duration: Duration(seconds: 15)),
+      );
+    });
+
+    try {
+      var request =
+          http.MultipartRequest('POST', Uri.parse('$_serverUrl/analyze/file'));
+      request.files
+          .add(await http.MultipartFile.fromPath('file', audioFile.path));
+
+      var streamedResponse =
+          await request.send().timeout(const Duration(seconds: 15));
+      var response = await http.Response.fromStream(streamedResponse);
+
+      _handleServerResponse(response.statusCode, response.body, context);
+    } catch (e) {
+      _handleNetworkError(e, context);
+    }
+  }
+
+  void _handleServerResponse(
+      int statusCode, String responseBody, BuildContext context) {
+    if (!mounted) return;
+
+    final data = jsonDecode(responseBody);
+    
+    // --- SMART ERROR HANDLING FOR SAMPLE RATE ISSUE ---
+    if (statusCode == 500 &&
+        data['error'] != null &&
+        data['error'].toString().contains('Invalid sample rate')) {
+      setState(() {
+        _isLoading = false;
+        _prediction = 'Analysis Failed';
+      });
+      _showErrorDialog(
+          "Microphone Error on Raspberry Pi",
+          "The app connected to the Pi, but the Pi's microphone failed to record.\n\nReason: Invalid Sample Rate.\n\nThis is a hardware mismatch on the Pi. Please check that the microphone connected to the Pi supports the required sample rate.",
+          context);
+      return;
+    }
+
+    if (statusCode == 200) {
+      final prediction = data['prediction']?.toString().toLowerCase();
+      
+      setState(() {
+        _prediction = prediction ?? 'Unknown';
+        _isLoading = false;
+      });
+
+      // --- This is where you would navigate to your details page ---
+      String? reason;
+      String? imagePath;
+      switch (prediction) {
+        case 'sleepiness':
+          reason = 'Sleeping';
+          imagePath = 'assets/sleeping.png';
+          break;
+        case 'hunger':
+          reason = 'Hunger';
+          imagePath = 'assets/hunger.png';
+          break;
+        case 'pain':
+          reason = 'Pain';
+          imagePath = 'assets/pain.png';
+          break;
+        case 'discomfort':
+          reason = 'Discomfort';
+          imagePath = 'assets/discomfort.png';
+          break;
+        default:
+          _showErrorDialog("Analysis Complete", "Result: '${data['prediction']}'", context);
+          return;
+      }
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CryReasonDetailsPage(
+            reason: reason!,
+            details: const {},
+            imagePath: imagePath!,
+            userId: _user['id'],
+            segmentPredictions: [],
+          ),
+        ),
+      ).then((_) {
+        _refreshCryCounts();
+      });
+
+    } else {
+       setState(() {
+        _isLoading = false;
+        _prediction = "Analysis Failed";
+      });
+      _showErrorDialog("Server Error: $statusCode", responseBody, context);
+    }
+  }
+
+  void _handleNetworkError(dynamic error, BuildContext context) {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _prediction = "Connection Failed";
+    });
+     _showErrorDialog(
+        "Network Error",
+        "Cannot connect to Raspberry Pi at $_serverUrl.\nConnection timed out.",
+        context);
+  }
+
+  void _showErrorDialog(String title, String content, BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(child: Text(content)),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // =================================================================
+  // ======================= ORIGINAL APP LOGIC ======================
+  // =================================================================
 
   void _refreshCryCounts() {
     setState(() {
@@ -78,132 +318,6 @@ class _MainMenuState extends State<MainMenu> {
       _selectedDate = newDate;
       _refreshCryCounts();
     });
-  }
-
-  void _handleAnalysisResponse(http.Response response) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final prediction = data['prediction']?.toString().toLowerCase();
-      final segments = data['segment_logs'] as List<dynamic>?;
-
-      setState(() {
-        _prediction = data['prediction'] ?? 'Unknown';
-        _segmentPredictions =
-            segments?.map((s) => s.toString()).toList() ?? [];
-      });
-
-      String? reason;
-      String? imagePath;
-
-      switch (prediction) {
-        case 'sleepiness':
-          reason = 'Sleeping';
-          imagePath = 'assets/sleeping.png';
-          break;
-        case 'hunger':
-          reason = 'Hunger';
-          imagePath = 'assets/hunger.png';
-          break;
-        case 'pain':
-          reason = 'Pain';
-          imagePath = 'assets/pain.png';
-          break;
-        case 'discomfort':
-          reason = 'Discomfort';
-          imagePath = 'assets/discomfort.png';
-          break;
-        default:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Analysis result: ${data['prediction']}')),
-          );
-          return;
-      }
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CryReasonDetailsPage(
-            reason: reason!,
-            details: const {},
-            imagePath: imagePath!,
-            userId: _user['id'],
-            segmentPredictions: _segmentPredictions,
-          ),
-        ),
-      ).then((_) {
-        _refreshCryCounts();
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('Server Error: ${response.statusCode}\n${response.body}')),
-      );
-    }
-  }
-
-  void _handleAnalysisError(dynamic error) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: ${error.toString()}')),
-    );
-  }
-
-  Future<void> _analyzeMic() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Analyzing... Please wait.'),
-          duration: Duration(seconds: 15)),
-    );
-
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$serverUrl/analyze/mic'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(const Duration(seconds: 15));
-
-      _handleAnalysisResponse(response);
-    } catch (e) {
-      _handleAnalysisError(e);
-    }
-  }
-
-  Future<void> _analyzeFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['wav'],
-    );
-
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Analyzing file...'),
-            duration: Duration(seconds: 15)),
-      );
-
-      try {
-        var request =
-            http.MultipartRequest('POST', Uri.parse('$serverUrl/analyze/file'));
-        request.files.add(
-          await http.MultipartFile.fromPath('file', file.path),
-        );
-        var streamedResponse =
-            await request.send().timeout(const Duration(seconds: 15));
-        var response = await http.Response.fromStream(streamedResponse);
-
-        _handleAnalysisResponse(response);
-      } catch (e) {
-        _handleAnalysisError(e);
-      }
-    } else {
-      // User canceled the picker
-    }
   }
 
   @override
@@ -259,16 +373,13 @@ class _MainMenuState extends State<MainMenu> {
               ),
             ),
             ListTile(
-              leading:
-                  const Icon(Icons.science_outlined, color: Colors.lightBlue),
+              leading: const Icon(Icons.science_outlined, color: Colors.lightBlue),
               title: const Text('Cry Behavior (Testing)'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) =>
-                          CryBehaviorTestingPage(userId: _user['id'])),
+                  MaterialPageRoute(builder: (context) => CryBehaviorTestingPage(userId: _user['id'])),
                 ).then((_) => _refreshCryCounts());
               },
             ),
@@ -279,9 +390,7 @@ class _MainMenuState extends State<MainMenu> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) => CryHistoryPage(
-                          userId: _user['id'], initialDate: _selectedDate)),
+                  MaterialPageRoute(builder: (context) => CryHistoryPage(userId: _user['id'], initialDate: _selectedDate)),
                 ).then((_) => _refreshCryCounts());
               },
             ),
@@ -299,8 +408,7 @@ class _MainMenuState extends State<MainMenu> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) => const TermsAndConditionsPage()),
+                  MaterialPageRoute(builder: (context) => const TermsAndConditionsPage()),
                 );
               },
             ),
@@ -432,33 +540,43 @@ class _MainMenuState extends State<MainMenu> {
               ),
             ),
             const SizedBox(height: 16.0),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0, vertical: 12.0),
+            if (_isLoading)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(8.0),
+                child: CircularProgressIndicator(),
+              ))
+            else
+              Column(
+                children: [
+                   ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24.0, vertical: 12.0),
+                      ),
+                      onPressed: _startMicAnalysis, // UPDATED
+                      icon: const Icon(Icons.mic, color: Colors.white),
+                      label: const Text('Mic Test',
+                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                    ),
+                    const SizedBox(height: 12.0),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24.0, vertical: 12.0),
+                      ),
+                      onPressed: _startFileAnalysis, // UPDATED
+                      icon: const Icon(Icons.upload_file, color: Colors.white),
+                      label: const Text('Upload Cry File',
+                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                    ),
+                ],
               ),
-              onPressed: _analyzeMic,
-              icon: const Icon(Icons.mic, color: Colors.white),
-              label: const Text('Mic Test',
-                  style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
-            const SizedBox(height: 12.0),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0, vertical: 12.0),
-              ),
-              onPressed: _analyzeFile,
-              icon: const Icon(Icons.upload_file, color: Colors.white),
-              label: const Text('Upload Cry File',
-                  style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
           ],
         ),
       ),
@@ -471,10 +589,10 @@ class _MainMenuState extends State<MainMenu> {
     return FutureBuilder<Map<String, int>>(
       future: _cryCountsFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Column(
             children: [
               Text(
@@ -509,7 +627,7 @@ class _MainMenuState extends State<MainMenu> {
         }
 
         final double maxY = getNiceMaxValue(maxCount);
-        final double interval = (maxY / 5);
+        final double interval = (maxY / 5).ceilToDouble();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
