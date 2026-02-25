@@ -111,6 +111,7 @@ class _MainMenuState extends State<MainMenu> {
 
     setState(() {
       _prediction = "Recording and analyzing...";
+      _segmentPredictions = []; // Clear old segments
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Recording & Analyzing via Pi...'),
@@ -149,6 +150,7 @@ class _MainMenuState extends State<MainMenu> {
 
     setState(() {
       _prediction = "Uploading and analyzing file...";
+      _segmentPredictions = []; // Clear old segments
        ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Uploading & Analyzing via Pi...'),
@@ -195,9 +197,11 @@ class _MainMenuState extends State<MainMenu> {
 
     if (statusCode == 200) {
       final prediction = data['prediction']?.toString().toLowerCase();
+      final segments = data['segment_logs'] as List<dynamic>?;
       
       setState(() {
         _prediction = prediction ?? 'Unknown';
+        _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
         _isLoading = false;
       });
 
@@ -234,7 +238,7 @@ class _MainMenuState extends State<MainMenu> {
             details: const {},
             imagePath: imagePath!,
             userId: _user['id'],
-            segmentPredictions: [],
+            segmentPredictions: _segmentPredictions, // Pass segments to details page
           ),
         ),
       ).then((_) {
@@ -514,9 +518,11 @@ class _MainMenuState extends State<MainMenu> {
             _isNotificationExpanded = expanded;
           });
         },
-        children: _segmentPredictions
-            .map((segment) => ListTile(title: Text(segment)))
-            .toList(),
+        children: _segmentPredictions.isNotEmpty
+            ? _segmentPredictions
+                .map((segment) => ListTile(title: Text(segment)))
+                .toList()
+            : [const ListTile(title: Text("No segment data available"))],
       ),
     );
   }
