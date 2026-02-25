@@ -546,35 +546,38 @@ class _MainMenuState extends State<MainMenu> {
                 child: CircularProgressIndicator(),
               ))
             else
-              Column(
+              Row(
                 children: [
-                   ElevatedButton.icon(
+                  Expanded(
+                    child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.0)),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24.0, vertical: 12.0),
+                             vertical: 12.0),
                       ),
                       onPressed: _startMicAnalysis, // UPDATED
                       icon: const Icon(Icons.mic, color: Colors.white),
                       label: const Text('Mic Test',
                           style: TextStyle(color: Colors.white, fontSize: 16)),
                     ),
-                    const SizedBox(height: 12.0),
-                    ElevatedButton.icon(
+                  ),
+                  const SizedBox(width: 12.0),
+                  Expanded(
+                    child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.0)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24.0, vertical: 12.0),
+                        padding: const EdgeInsets.symmetric( vertical: 12.0),
                       ),
                       onPressed: _startFileAnalysis, // UPDATED
                       icon: const Icon(Icons.upload_file, color: Colors.white),
-                      label: const Text('Upload Cry File',
+                      label: const Text('Upload File',
                           style: TextStyle(color: Colors.white, fontSize: 16)),
                     ),
+                  ),
                 ],
               ),
           ],
@@ -694,7 +697,7 @@ class _MainMenuState extends State<MainMenu> {
                       getTooltipColor: (group) => Colors.blueGrey[800]!,
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
                         return BarTooltipItem(
-                          '${rod.toY.round()}',
+                          rod.toY.round().toString(),
                           const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
