@@ -592,29 +592,11 @@ class _MainMenuState extends State<MainMenu> {
     return FutureBuilder<Map<String, int>>(
       future: _cryCountsFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Column(
-            children: [
-              Text(
-                'Cry Analysis',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22.0,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blueGrey[800],
-                ),
-              ),
-              const SizedBox(height: 24.0),
-              const Center(
-                  child: Text('No cry data to display for this date.')),
-            ],
-          );
-        }
 
-        final cryCounts = snapshot.data!;
+        final cryCounts = snapshot.data ?? {};
         final double maxCount =
             (cryCounts.values.isEmpty ? 0 : cryCounts.values.reduce(max))
                 .toDouble();
@@ -685,120 +667,123 @@ class _MainMenuState extends State<MainMenu> {
               ],
             ),
             const SizedBox(height: 16.0),
-            AspectRatio(
-              aspectRatio: 1.6,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxY,
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (group) => Colors.blueGrey[800]!,
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        return BarTooltipItem(
-                          rod.toY.round().toString(),
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+            if (cryCounts.isEmpty)
+              const Center(child: Text('No cry data to display for this date.'))
+            else
+              AspectRatio(
+                aspectRatio: 1.6,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: maxY,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => Colors.blueGrey[800]!,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          return BarTooltipItem(
+                            rod.toY.round().toString(),
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (double value, TitleMeta meta) {
+                            final style = TextStyle(
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            );
+                            String text;
+                            switch (value.toInt()) {
+                              case 0:
+                                text = 'Pain';
+                                break;
+                              case 1:
+                                text = 'Hunger';
+                                break;
+                              case 2:
+                                text = 'Sleep';
+                                break;
+                              case 3:
+                                text = 'Discomfort';
+                                break;
+                              default:
+                                text = '';
+                                break;
+                            }
+                            return SideTitleWidget(
+                              axisSide: meta.axisSide,
+                              space: 8.0,
+                              child: Text(text, style: style),
+                            );
+                          },
+                          reservedSize: 38,
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          interval: interval,
+                          getTitlesWidget: (value, meta) {
+                            if (value > meta.max) {
+                              return Container();
+                            }
+                            return Text(
+                              value.toInt().toString(),
+                              style: TextStyle(
+                                  color: Colors.grey[700], fontSize: 10),
+                              textAlign: TextAlign.left,
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: interval,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: Colors.grey[300]!,
+                          strokeWidth: 1,
                         );
                       },
                     ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (double value, TitleMeta meta) {
-                          final style = TextStyle(
-                            color: Colors.grey[800],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          );
-                          String text;
-                          switch (value.toInt()) {
-                            case 0:
-                              text = 'Pain';
-                              break;
-                            case 1:
-                              text = 'Hunger';
-                              break;
-                            case 2:
-                              text = 'Sleep';
-                              break;
-                            case 3:
-                              text = 'Discomfort';
-                              break;
-                            default:
-                              text = '';
-                              break;
-                          }
-                          return SideTitleWidget(
-                            axisSide: meta.axisSide,
-                            space: 8.0,
-                            child: Text(text, style: style),
-                          );
-                        },
-                        reservedSize: 38,
-                      ),
+                    borderData: FlBorderData(
+                      show: false,
                     ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        interval: interval,
-                        getTitlesWidget: (value, meta) {
-                          if (value > meta.max) {
-                            return Container();
-                          }
-                          return Text(
-                            value.toInt().toString(),
-                            style: TextStyle(
-                                color: Colors.grey[700], fontSize: 10),
-                            textAlign: TextAlign.left,
-                          );
-                        },
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
+                    barGroups: [
+                      _buildBarChartGroupData(
+                          0, cryCounts['Pain']?.toDouble() ?? 0, Colors.orange, maxY),
+                      _buildBarChartGroupData(1,
+                          cryCounts['Hunger']?.toDouble() ?? 0, Colors.green, maxY),
+                      _buildBarChartGroupData(2,
+                          cryCounts['Sleeping']?.toDouble() ?? 0, Colors.blue, maxY),
+                      _buildBarChartGroupData(
+                          3,
+                          cryCounts['Discomfort']?.toDouble() ?? 0,
+                          Colors.purple,
+                          maxY),
+                    ],
                   ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: interval,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: Colors.grey[300]!,
-                        strokeWidth: 1,
-                      );
-                    },
-                  ),
-                  borderData: FlBorderData(
-                    show: false,
-                  ),
-                  barGroups: [
-                    _buildBarChartGroupData(
-                        0, cryCounts['Pain']?.toDouble() ?? 0, Colors.orange, maxY),
-                    _buildBarChartGroupData(1,
-                        cryCounts['Hunger']?.toDouble() ?? 0, Colors.green, maxY),
-                    _buildBarChartGroupData(2,
-                        cryCounts['Sleeping']?.toDouble() ?? 0, Colors.blue, maxY),
-                    _buildBarChartGroupData(
-                        3,
-                        cryCounts['Discomfort']?.toDouble() ?? 0,
-                        Colors.purple,
-                        maxY),
-                  ],
+                  swapAnimationDuration: const Duration(milliseconds: 375),
+                  swapAnimationCurve: Curves.easeIn,
                 ),
-                swapAnimationDuration: const Duration(milliseconds: 375),
-                swapAnimationCurve: Curves.easeIn,
               ),
-            ),
           ],
         );
       },
