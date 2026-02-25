@@ -57,7 +57,22 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
   }
 
   void _showSegmentsDialog(String? segmentsJson) {
-    if (segmentsJson == null || segmentsJson.isEmpty) return;
+    if (segmentsJson == null || segmentsJson.isEmpty || segmentsJson == '[]') {
+       showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Segment Predictions'),
+          content: const Text('No segment data available for this record.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     final segments = jsonDecode(segmentsJson) as List<dynamic>;
 
@@ -158,45 +173,42 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                   child: Card(
                     elevation: 4.0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: DataTable(
-                        columnSpacing: 38.0,
-                        columns: const <DataColumn>[
-                          DataColumn(
-                            label: Text(
-                              'Time',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey),
-                            ),
+                    child: DataTable(
+                      showCheckboxColumn: false, // Hides the checkbox column
+                      columnSpacing: 38.0,
+                      columns: const <DataColumn>[
+                        DataColumn(
+                          label: Text(
+                            'Time',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey),
                           ),
-                          DataColumn(
-                            label: Text(
-                              'Output',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey),
-                            ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Output',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey),
                           ),
-                          DataColumn(
-                            label: Text(
-                              'Accuracy',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey),
-                            ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Accuracy',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey),
                           ),
-                        ],
-                        rows: records.map((record) {
-                          return DataRow(
-                            cells: <DataCell>[
-                              DataCell(Text(record['time'])),
-                              DataCell(Text(record['output'])),
-                              DataCell(Text(record['accuracy'], style: TextStyle(color: record['accuracy'] == 'True' ? Colors.green : Colors.red))),
-                            ],
-                            onSelectChanged: (selected) {
-                              if (selected ?? false) {
-                                _showSegmentsDialog(record['segments']);
-                              }
-                            },
-                          );
-                        }).toList(),
-                      ),
+                        ),
+                      ],
+                      rows: records.map((record) {
+                        return DataRow(
+                          cells: <DataCell>[
+                            DataCell(Text(record['time'])),
+                            DataCell(Text(record['output'])),
+                            DataCell(Text(record['accuracy'], style: TextStyle(color: record['accuracy'] == 'True' ? Colors.green : Colors.red, fontWeight: FontWeight.bold))),
+                          ],
+                          onSelectChanged: (selected) {
+                            // Show dialog when any part of the row is tapped
+                            _showSegmentsDialog(record['segments']);
+                          },
+                        );
+                      }).toList(),
                     ),
                   ),
                 );
