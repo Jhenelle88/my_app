@@ -32,21 +32,6 @@ class CryReasonDetailsPage extends StatefulWidget {
 class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
   bool _isExpanded = false;
 
-  IconData _getIconForDetail(String detailKey) {
-    switch (detailKey) {
-      case 'Cry Pattern':
-        return Icons.waves;
-      case 'Detected By':
-        return Icons.sensors;
-      case 'Indicator':
-        return Icons.lightbulb_outline;
-      case 'What to Do':
-        return Icons.healing;
-      default:
-        return Icons.info_outline;
-    }
-  }
-
   Color _getColorForReason(String reason) {
     switch (reason) {
       case 'Sleeping':
@@ -65,13 +50,13 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
   Color _getBackgroundColorForReason(String reason) {
     switch (reason) {
       case 'Sleeping':
-        return Colors.blue[100]!;
+        return Colors.blue[50]!;
       case 'Hunger':
-        return Colors.green[100]!;
+        return Colors.green[50]!;
       case 'Pain':
-        return Colors.orange[100]!;
+        return Colors.orange[50]!;
       case 'Discomfort':
-        return Colors.purple[100]!;
+        return Colors.purple[50]!;
       default:
         return Colors.grey[200]!;
     }
@@ -107,7 +92,10 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
     await DatabaseHelper.instance.insertCryRecord(newRecord);
 
     if (mounted) {
-      Navigator.of(context).pop();
+      // Check if the current page can be popped, otherwise do nothing.
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -118,200 +106,114 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
     final String mainText = _getMainTextForReason(widget.reason);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.reason),
-        backgroundColor: reasonColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        titleTextStyle: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (widget.details.isNotEmpty)
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: widget.details.entries.length,
-                    itemBuilder: (context, index) {
-                      final entry = widget.details.entries.elementAt(index);
-                      final lines = entry.value.split('\n');
-                      return Card(
-                        elevation: 4.0,
-                        margin: const EdgeInsets.only(bottom: 16.0),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (widget.imagePath != null)
+                  Card(
+                    color: Colors.white,
+                    elevation: 8.0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            mainText,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: reasonColor,
+                            ),
+                          ),
+                          const SizedBox(height: 12.0),
+                          if (widget.segmentPredictions.isNotEmpty || widget.confidence.isNotEmpty || widget.matchedFile.isNotEmpty || widget.rawScores.isNotEmpty)
+                            Theme(
+                              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                              child: ExpansionTile(
+                                title: Text('Check Result', style: TextStyle(color: reasonColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                                tilePadding: EdgeInsets.zero,
+                                initiallyExpanded: _isExpanded,
+                                onExpansionChanged: (bool expanded) {
+                                  setState(() {
+                                    _isExpanded = expanded;
+                                  });
+                                },
                                 children: [
-                                  Icon(_getIconForDetail(entry.key), color: reasonColor, size: 28),
-                                  const SizedBox(width: 12.0),
-                                  Expanded(
-                                    child: Text(
-                                      entry.key,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20.0,
-                                        color: reasonColor,
-                                      ),
+                                  if (widget.confidence.isNotEmpty)
+                                    ListTile(
+                                      dense: true,
+                                      title: const Text('Confidence', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      subtitle: Text(widget.confidence, style: const TextStyle(fontSize: 12)),
+                                      leading: Icon(Icons.bar_chart, color: reasonColor, size: 20),
                                     ),
-                                  ),
+                                  if (widget.rawScores.isNotEmpty)
+                                    ListTile(
+                                      dense: true,
+                                      title: const Text('Raw Scores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      subtitle: Text(widget.rawScores, style: const TextStyle(fontSize: 11)),
+                                      leading: Icon(Icons.list, color: reasonColor, size: 20),
+                                    ),
+                                  if (widget.matchedFile.isNotEmpty)
+                                    ListTile(
+                                      dense: true,
+                                      title: const Text('Matched File', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      subtitle: Text(widget.matchedFile, style: const TextStyle(fontSize: 11)),
+                                      leading: Icon(Icons.audio_file, color: reasonColor, size: 20),
+                                    ),
                                 ],
                               ),
-                              const Divider(height: 24.0, thickness: 1.0),
-                              ...lines.map((line) => Padding(
-                                    padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4.0),
-                                          child: Icon(Icons.arrow_right, color: Colors.blueGrey[300], size: 16),
-                                        ),
-                                        const SizedBox(width: 8.0),
-                                        Expanded(
-                                          child: Text(
-                                            line,
-                                            style: TextStyle(fontSize: 16.0, height: 1.4, color: Colors.blueGrey[800]),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ))
-                                  .toList(),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              if (widget.imagePath != null)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: SingleChildScrollView(
-                      child: Card(
-                        color: Colors.white,
-                        elevation: 8.0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min, 
-                            children: [
-                              Text(
-                                mainText,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  color: reasonColor,
-                                ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              child: Image.asset(
+                                widget.imagePath!,
+                                fit: BoxFit.contain,
+                                height: MediaQuery.of(context).size.height * 0.25, // Limit image height
                               ),
-                              const SizedBox(height: 16.0),
-                              if (widget.segmentPredictions.isNotEmpty || widget.confidence.isNotEmpty || widget.matchedFile.isNotEmpty || widget.rawScores.isNotEmpty)
-                                ExpansionTile(
-                                  title: Text('Check Result', style: TextStyle(color: reasonColor, fontWeight: FontWeight.bold)),
-                                  onExpansionChanged: (bool expanded) {
-                                    setState(() {
-                                      _isExpanded = expanded;
-                                    });
-                                  },
-                                  initiallyExpanded: _isExpanded,
-                                  children: [
-                                    if (widget.confidence.isNotEmpty)
-                                      ListTile(
-                                        title: const Text('Confidence', style: TextStyle(fontWeight: FontWeight.bold)),
-                                        subtitle: Text(widget.confidence),
-                                        leading: Icon(Icons.bar_chart, color: reasonColor),
-                                      ),
-                                    if (widget.rawScores.isNotEmpty)
-                                      ListTile(
-                                        title: const Text('Raw Scores', style: TextStyle(fontWeight: FontWeight.bold)),
-                                        subtitle: Text(widget.rawScores),
-                                        leading: Icon(Icons.list, color: reasonColor),
-                                      ),
-                                    if (widget.matchedFile.isNotEmpty)
-                                      ListTile(
-                                        title: const Text('Matched File', style: TextStyle(fontWeight: FontWeight.bold)),
-                                        subtitle: Text(widget.matchedFile),
-                                        leading: Icon(Icons.audio_file, color: reasonColor),
-                                      ),
-                                    if (widget.segmentPredictions.isNotEmpty)
-                                      ...widget.segmentPredictions.map((prediction) => ListTile(
-                                        title: Text(prediction),
-                                        leading: Icon(Icons.segment, color: reasonColor.withOpacity(0.5)),
-                                      )).toList(),
-                                  ],
-                                ),
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxHeight: MediaQuery.of(context).size.height * 0.4,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 24.0),
-                                  child: Image.asset(
-                                    widget.imagePath!,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _handleFeedback(true),
-                                      icon: const Icon(Icons.check, color: Colors.white),
-                                      label: const Text('Correct', style: TextStyle(color: Colors.white)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12.0),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                      ),
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _handleFeedback(true),
+                                    icon: const Icon(Icons.check, color: Colors.white, size: 18),
+                                    label: const Text('Correct', style: TextStyle(color: Colors.white, fontSize: 14)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                      padding: const EdgeInsets.symmetric(vertical: 12.0),
                                     ),
                                   ),
-                                  const SizedBox(width: 16.0),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _handleFeedback(false),
-                                      icon: const Icon(Icons.close, color: Colors.white),
-                                      label: const Text('Incorrect', style: TextStyle(color: Colors.white)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12.0),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                      ),
+                                ),
+                                const SizedBox(width: 12.0),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _handleFeedback(false),
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                                    label: const Text('Incorrect', style: TextStyle(color: Colors.white, fontSize: 14)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                      padding: const EdgeInsets.symmetric(vertical: 12.0),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                                ),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -27,21 +27,20 @@ class CryBehaviorPage extends StatelessWidget {
       elevation: 4.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16.0,
-            mainAxisSpacing: 16.0,
-            children: [
-              _buildReasonButton(context, 'Sleeping', Icons.nightlight_round, Colors.blue),
-              _buildReasonButton(context, 'Hunger', Icons.restaurant_menu, Colors.green),
-              _buildReasonButton(context, 'Pain', Icons.healing, Colors.orange),
-              _buildReasonButton(context, 'Discomfort', Icons.thermostat, Colors.purple),
-            ],
-          ),
+        padding: const EdgeInsets.all(12.0),
+        child: GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12.0,
+          mainAxisSpacing: 12.0,
+          childAspectRatio: 1.1,
+          children: [
+            _buildReasonButton(context, 'Sleeping', Icons.nightlight_round, Colors.blue),
+            _buildReasonButton(context, 'Hunger', Icons.restaurant_menu, Colors.green),
+            _buildReasonButton(context, 'Pain', Icons.healing, Colors.orange),
+            _buildReasonButton(context, 'Discomfort', Icons.thermostat, Colors.purple),
+          ],
         ),
       ),
     );
@@ -55,19 +54,25 @@ class CryBehaviorPage extends StatelessWidget {
         onTap: () => _showReasonDetails(context, reason),
         borderRadius: BorderRadius.circular(12.0),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 40, color: color),
-              const SizedBox(height: 12.0),
-              Text(
-                reason,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.blueGrey[800],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              Icon(icon, size: 26, color: color),
+              const SizedBox(height: 2.0),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    reason,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.blueGrey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ),
             ],

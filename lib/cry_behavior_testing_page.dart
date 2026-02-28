@@ -148,7 +148,6 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
       if (rawScoresData != null && rawScoresData is Map) {
         formattedRaw = rawScoresData.entries.map((e) {
           double val = (e.value is num) ? e.value.toDouble() : 0.0;
-          // Capitalize first letter of key
           String key = e.key.toString();
           if (key.isNotEmpty) {
             key = key[0].toUpperCase() + key.substring(1);
@@ -198,9 +197,10 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               _buildLiveTestingSection(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 8),
               const Text("Cry Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
@@ -218,41 +218,52 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
       elevation: 4.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
               'Analyze Cry via Pi',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (_isLoading)
-              const Center(child: CircularProgressIndicator())
+              const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
             else
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _startMicAnalysis,
-                      icon: const Icon(Icons.mic),
-                      label: const Text("Trigger Mic"),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                      icon: const Icon(Icons.mic, size: 16),
+                      label: const Text("Mic", overflow: TextOverflow.ellipsis),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue, 
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _startFileAnalysis,
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text("Upload File"),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                      icon: const Icon(Icons.upload_file, size: 16),
+                      label: const Text("File", overflow: TextOverflow.ellipsis),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green, 
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
                     ),
                   ),
                 ],
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             _buildResultExpansionTile(),
           ],
         ),
@@ -261,54 +272,76 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
   }
 
   Widget _buildResultExpansionTile() {
-    return ExpansionTile(
-      title: const Text("Check Result", style: TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(_prediction, style: TextStyle(color: Colors.blueGrey[700])),
-      initiallyExpanded: _isResultExpanded,
-      onExpansionChanged: (val) => setState(() => _isResultExpanded = val),
-      children: [
-        if (_detectedImagePath != null)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Image.asset(_detectedImagePath!, height: 100),
-          ),
-        if (_confidence.isNotEmpty)
-          ListTile(
-            leading: const Icon(Icons.bar_chart, color: Colors.blue),
-            title: const Text("Confidence"),
-            subtitle: Text(_confidence),
-          ),
-        if (_rawScores.isNotEmpty)
-          ListTile(
-            leading: const Icon(Icons.list, color: Colors.green),
-            title: const Text("Raw Scores"),
-            subtitle: Text(_rawScores),
-          ),
-        if (_prediction != 'No test performed yet' && !_prediction.startsWith('Analysis Failed'))
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CryReasonDetailsPage(
-                      reason: _prediction,
-                      details: const {},
-                      imagePath: _detectedImagePath,
-                      userId: widget.userId,
-                      confidence: _confidence,
-                      rawScores: _rawScores,
-                      segmentPredictions: _segmentPredictions,
-                      matchedFile: _matchedFile,
-                    ),
-                  ),
-                );
-              },
-              child: const Text("View Full Details"),
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+        title: const Text("Check Result", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text(_prediction, style: TextStyle(color: Colors.blueGrey[700], fontSize: 12)),
+        initiallyExpanded: _isResultExpanded,
+        onExpansionChanged: (val) => setState(() => _isResultExpanded = val),
+        children: [
+          if (_detectedImagePath != null)
+            Padding(
+              padding: const EdgeInsets.all(4.0),
+              child: Image.asset(_detectedImagePath!, height: 60),
             ),
-          ),
-      ],
+          if (_confidence.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.bar_chart, color: Colors.blue, size: 16),
+                  const SizedBox(width: 8),
+                  Text(_confidence, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          if (_rawScores.isNotEmpty)
+             Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.list, color: Colors.green, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_rawScores, style: const TextStyle(fontSize: 11))),
+                ],
+              ),
+            ),
+          if (_prediction != 'No test performed yet' && !_prediction.startsWith('Analysis Failed'))
+            Padding(
+              padding: const EdgeInsets.all(4.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CryReasonDetailsPage(
+                          reason: _prediction,
+                          details: const {},
+                          imagePath: _detectedImagePath,
+                          userId: widget.userId,
+                          confidence: _confidence,
+                          rawScores: _rawScores,
+                          segmentPredictions: _segmentPredictions,
+                          matchedFile: _matchedFile,
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 0),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: const Text("View Details", style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -317,8 +350,9 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16.0,
-      mainAxisSpacing: 16.0,
+      crossAxisSpacing: 10.0,
+      mainAxisSpacing: 10.0,
+      childAspectRatio: 1.2,
       children: [
         _buildReasonButton('Sleeping', Icons.nightlight_round, Colors.blue, 'assets/sleeping.png'),
         _buildReasonButton('Hunger', Icons.restaurant_menu, Colors.green, 'assets/hunger.png'),
@@ -331,24 +365,30 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
   Widget _buildReasonButton(String reason, IconData icon, Color color, String imagePath) {
     return Card(
       elevation: 2.0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       child: InkWell(
         onTap: () => _showReasonDetails(reason, imagePath),
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(10.0),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(4.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 40, color: color),
-              const SizedBox(height: 12.0),
-              Text(
-                reason,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.blueGrey[800],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              Icon(icon, size: 24, color: color),
+              const SizedBox(height: 2.0),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    reason,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.blueGrey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ),
             ],
