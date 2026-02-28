@@ -1,7 +1,7 @@
-
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -15,6 +15,7 @@ import 'package:my_app/cry_reason_details_page.dart';
 import 'package:my_app/database_helper.dart';
 import 'package:my_app/faq_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
+import 'package:my_app/cry_classifier.dart';
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -37,9 +38,12 @@ class _MainMenuState extends State<MainMenu> {
   // --- STATE FOR RASPBERRY PI CONNECTION ---
   String _serverUrl = '';
   bool _isLoading = false;
-  String _prediction = 'Hunger'; // Default value
+  String _prediction = 'Waiting for input...'; 
   String _confidence = '';
+  String _matchedFile = '';
   String _errorMessage = '';
+  String _rawScores = '';
+  String? _detectedImagePath;
 
   @override
   void initState() {
@@ -61,6 +65,9 @@ class _MainMenuState extends State<MainMenu> {
       _isLoading = true;
       _errorMessage = "";
       _confidence = "";
+      _matchedFile = "";
+      _rawScores = "";
+      _detectedImagePath = null;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Searching for Raspberry Pi...'),
@@ -75,7 +82,7 @@ class _MainMenuState extends State<MainMenu> {
       socket.send(utf8.encode('CRYCOM_DISCOVER'), broadcastAddr, 5001);
 
       await for (RawSocketEvent event
-          in socket.timeout(const Duration(seconds: 3))) {
+      in socket.timeout(const Duration(seconds: 3))) {
         if (event == RawSocketEvent.read) {
           Datagram? dg = socket.receive();
           if (dg != null) {
@@ -110,7 +117,12 @@ class _MainMenuState extends State<MainMenu> {
     if (!found || !mounted) return;
 
     setState(() {
-      _prediction = "Recording and analyzing...";
+      _isLoading = true;
+      _prediction = "Pi is recording for 4 seconds...";
+      _confidence = "";
+      _matchedFile = "";
+      _rawScores = "";
+      _detectedImagePath = null;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Recording & Analyzing via Pi...'),
@@ -121,12 +133,17 @@ class _MainMenuState extends State<MainMenu> {
     try {
       final response = await http
           .post(
-            Uri.parse('$_serverUrl/analyze/mic'),
-            headers: {'Content-Type': 'application/json'},
-          )
+        Uri.parse('$_serverUrl/analyze/mic'),
+        headers: {'Content-Type': 'application/json'},
+      )
           .timeout(const Duration(seconds: 15));
 
       _handleServerResponse(response.statusCode, response.body, context);
+    } on TimeoutException {
+      setState(() {
+        _isLoading = false;
+        _prediction = "Connection Timed Out. Ensure the Pi is running the server.";
+      });
     } catch (e) {
       _handleNetworkError(e, context);
     }
@@ -139,7 +156,7 @@ class _MainMenuState extends State<MainMenu> {
     );
 
     if (result == null || result.files.single.path == null) {
-      return; 
+      return;
     }
 
     File audioFile = File(result.files.single.path!);
@@ -148,8 +165,13 @@ class _MainMenuState extends State<MainMenu> {
     if (!found || !mounted) return;
 
     setState(() {
+      _isLoading = true;
       _prediction = "Uploading and analyzing file...";
-       ScaffoldMessenger.of(context).showSnackBar(
+      _confidence = "";
+      _matchedFile = "";
+      _rawScores = "";
+      _detectedImagePath = null;
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Uploading & Analyzing via Pi...'),
             duration: Duration(seconds: 15)),
@@ -158,15 +180,20 @@ class _MainMenuState extends State<MainMenu> {
 
     try {
       var request =
-          http.MultipartRequest('POST', Uri.parse('$_serverUrl/analyze/file'));
+      http.MultipartRequest('POST', Uri.parse('$_serverUrl/analyze/file'));
       request.files
           .add(await http.MultipartFile.fromPath('file', audioFile.path));
 
       var streamedResponse =
-          await request.send().timeout(const Duration(seconds: 15));
+      await request.send().timeout(const Duration(seconds: 15));
       var response = await http.Response.fromStream(streamedResponse);
 
       _handleServerResponse(response.statusCode, response.body, context);
+    } on TimeoutException {
+      setState(() {
+        _isLoading = false;
+        _prediction = "Connection Timed Out.";
+      });
     } catch (e) {
       _handleNetworkError(e, context);
     }
@@ -177,8 +204,7 @@ class _MainMenuState extends State<MainMenu> {
     if (!mounted) return;
 
     final data = jsonDecode(responseBody);
-    
-    // --- SMART ERROR HANDLING FOR SAMPLE RATE ISSUE ---
+
     if (statusCode == 500 &&
         data['error'] != null &&
         data['error'].toString().contains('Invalid sample rate')) {
@@ -195,13 +221,23 @@ class _MainMenuState extends State<MainMenu> {
 
     if (statusCode == 200) {
       final prediction = data['prediction']?.toString().toLowerCase();
-      
-      setState(() {
-        _prediction = prediction ?? 'Unknown';
-        _isLoading = false;
-      });
+      final segments = data['segment_logs'] as List<dynamic>?;
+      final confidenceVal = data['confidence'];
+      final matchedFileVal = data['matched_file'];
+      final rawScoresData = data['raw_scores'];
 
-      // --- This is where you would navigate to your details page ---
+      String formattedRaw = "";
+      if (rawScoresData != null && rawScoresData is Map) {
+        formattedRaw = rawScoresData.entries.map((e) {
+          double val = (e.value is num) ? e.value.toDouble() : 0.0;
+          String key = e.key.toString();
+          if (key.isNotEmpty) {
+            key = key[0].toUpperCase() + key.substring(1);
+          }
+          return "$key: ${val.toStringAsFixed(1)}";
+        }).join('\n');
+      }
+
       String? reason;
       String? imagePath;
       switch (prediction) {
@@ -222,10 +258,29 @@ class _MainMenuState extends State<MainMenu> {
           imagePath = 'assets/discomfort.png';
           break;
         default:
-          _showErrorDialog("Analysis Complete", "Result: '${data['prediction']}'", context);
+          setState(() {
+            _prediction = prediction != null ? "Cry Detected: ${data['prediction']}" : 'Unknown';
+            _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
+            _confidence = confidenceVal != null ? "Confidence: ${(confidenceVal * 100).toStringAsFixed(1)}%" : "";
+            _matchedFile = matchedFileVal != null ? "Matched Pristine File: $matchedFileVal" : "";
+            _rawScores = formattedRaw;
+            _detectedImagePath = null;
+            _isLoading = false;
+          });
           return;
       }
-      
+
+      setState(() {
+        _prediction = "Cry Detected: $reason";
+        _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
+        _confidence = confidenceVal != null ? "Confidence: ${(confidenceVal * 100).toStringAsFixed(1)}%" : "";
+        _matchedFile = matchedFileVal != null ? "Matched Pristine File: $matchedFileVal" : "";
+        _rawScores = formattedRaw;
+        _detectedImagePath = imagePath;
+        _isLoading = false;
+      });
+
+      // Automatically navigate to details page on detection
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -234,7 +289,10 @@ class _MainMenuState extends State<MainMenu> {
             details: const {},
             imagePath: imagePath!,
             userId: _user['id'],
-            segmentPredictions: [],
+            segmentPredictions: _segmentPredictions,
+            confidence: _confidence,
+            matchedFile: _matchedFile,
+            rawScores: _rawScores,
           ),
         ),
       ).then((_) {
@@ -242,11 +300,11 @@ class _MainMenuState extends State<MainMenu> {
       });
 
     } else {
-       setState(() {
+      setState(() {
         _isLoading = false;
         _prediction = "Analysis Failed";
       });
-      _showErrorDialog("Server Error: $statusCode", responseBody, context);
+      _showErrorDialog("Server Error: $statusCode", data['error'] ?? responseBody, context);
     }
   }
 
@@ -255,10 +313,11 @@ class _MainMenuState extends State<MainMenu> {
     setState(() {
       _isLoading = false;
       _prediction = "Connection Failed";
+      _confidence = error.toString();
     });
-     _showErrorDialog(
+    _showErrorDialog(
         "Network Error",
-        "Cannot connect to Raspberry Pi at $_serverUrl.\nConnection timed out.",
+        "Could not connect to Raspberry Pi.\n\n$error",
         context);
   }
 
@@ -281,10 +340,6 @@ class _MainMenuState extends State<MainMenu> {
       },
     );
   }
-
-  // =================================================================
-  // ======================= ORIGINAL APP LOGIC ======================
-  // =================================================================
 
   void _refreshCryCounts() {
     setState(() {
@@ -394,6 +449,17 @@ class _MainMenuState extends State<MainMenu> {
                 ).then((_) => _refreshCryCounts());
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.mic, color: Colors.lightBlue),
+              title: const Text('Cry Classifier'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CryClassifierPage()),
+                );
+              },
+            ),
             const Divider(),
             ListTile(
               title: Text(
@@ -489,19 +555,30 @@ class _MainMenuState extends State<MainMenu> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       color: Colors.red[100],
       child: ExpansionTile(
-        leading:
-            Icon(Icons.notifications_active, color: Colors.red[800], size: 32.0),
+        leading: _detectedImagePath != null 
+            ? Image.asset(_detectedImagePath!, height: 40)
+            : Icon(Icons.notifications_active, color: Colors.red[800], size: 32.0),
         title: Text(
-          'Baby is Crying!',
+          'Baby Status',
           style: TextStyle(
             fontSize: 18.0,
             fontWeight: FontWeight.bold,
             color: Colors.red[800],
           ),
         ),
-        subtitle: Text(
-          'Reason: $_prediction',
-          style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _prediction,
+              style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
+            ),
+            if (_confidence.isNotEmpty)
+              Text(
+                _confidence,
+                style: TextStyle(fontSize: 14, color: Colors.blueAccent[700]),
+              ),
+          ],
         ),
         trailing: Icon(
           _isNotificationExpanded
@@ -514,9 +591,18 @@ class _MainMenuState extends State<MainMenu> {
             _isNotificationExpanded = expanded;
           });
         },
-        children: _segmentPredictions
-            .map((segment) => ListTile(title: Text(segment)))
-            .toList(),
+        children: [
+          if (_matchedFile.isNotEmpty)
+            ListTile(title: Text(_matchedFile, style: const TextStyle(fontStyle: FontStyle.italic))),
+          if (_rawScores.isNotEmpty)
+            ListTile(
+              title: const Text("Raw Scores", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: Text(_rawScores, style: const TextStyle(fontSize: 13)),
+            ),
+          ..._segmentPredictions
+              .map((segment) => ListTile(title: Text(segment)))
+              .toList(),
+        ],
       ),
     );
   }
@@ -554,28 +640,27 @@ class _MainMenuState extends State<MainMenu> {
                         backgroundColor: Colors.blue,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.0)),
-                        padding: const EdgeInsets.symmetric(
-                             vertical: 12.0),
+                        padding: const EdgeInsets.symmetric(vertical: 10.0),
                       ),
-                      onPressed: _startMicAnalysis, // UPDATED
-                      icon: const Icon(Icons.mic, color: Colors.white),
-                      label: const Text('Mic Test',
-                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                      onPressed: _startMicAnalysis, 
+                      icon: const Icon(Icons.mic, color: Colors.white, size: 18),
+                      label: const Text('Trigger Mic',
+                          style: TextStyle(color: Colors.white, fontSize: 13)),
                     ),
                   ),
-                  const SizedBox(width: 12.0),
+                  const SizedBox(width: 8.0),
                   Expanded(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.0)),
-                        padding: const EdgeInsets.symmetric( vertical: 12.0),
+                        padding: const EdgeInsets.symmetric(vertical: 10.0),
                       ),
-                      onPressed: _startFileAnalysis, // UPDATED
-                      icon: const Icon(Icons.upload_file, color: Colors.white),
+                      onPressed: _startFileAnalysis, 
+                      icon: const Icon(Icons.upload_file, color: Colors.white, size: 18),
                       label: const Text('Upload File',
-                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                          style: TextStyle(color: Colors.white, fontSize: 13)),
                     ),
                   ),
                 ],
@@ -598,8 +683,8 @@ class _MainMenuState extends State<MainMenu> {
 
         final cryCounts = snapshot.data ?? {};
         final double maxCount =
-            (cryCounts.values.isEmpty ? 0 : cryCounts.values.reduce(max))
-                .toDouble();
+        (cryCounts.values.isEmpty ? 0 : cryCounts.values.reduce(max))
+            .toDouble();
 
         double getNiceMaxValue(double maxValue) {
           if (maxValue <= 0) return 10;
@@ -819,7 +904,7 @@ class _MainMenuState extends State<MainMenu> {
             borderRadius: BorderRadius.circular(12.0),
           ),
           padding:
-              const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+          const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
         ),
         onPressed: () {
           Navigator.push(
@@ -906,40 +991,40 @@ class _MainMenuState extends State<MainMenu> {
         details = {
           'Cry Pattern': 'Soft, rhythmic, low intensity',
           'Detected By':
-              'Low audio frequency\nShort cry duration\nMinimal body movement (motion sensor)',
+          'Low audio frequency\nShort cry duration\nMinimal body movement (motion sensor)',
           'Indicator': 'Baby is drowsy or transitioning to sleep',
           'What to Do':
-              'Dim lights and reduce noise\nGently rock or swaddle the baby\nPlace the baby in a comfortable sleeping position',
+          'Dim lights and reduce noise\nGently rock or swaddle the baby\nPlace the baby in a comfortable sleeping position',
         };
         break;
       case 'Hunger':
         details = {
           'Cry Pattern': 'Repetitive, rising pitch, rhythmic',
           'Detected By':
-              'Increasing cry intensity over time\nRegular intervals between cries\nTime elapsed since last feeding (timer/log data)',
+          'Increasing cry intensity over time\nRegular intervals between cries\nTime elapsed since last feeding (timer/log data)',
           'Indicator': 'Feeding likely needed',
           'What to Do':
-              'Feed the baby immediately\nEnsure proper feeding position\nBurp the baby after feeding',
+          'Feed the baby immediately\nEnsure proper feeding position\nBurp the baby after feeding',
         };
         break;
       case 'Discomfort':
         details = {
           'Cry Pattern': 'Irregular, fussy, moderate pitch',
           'Detected By':
-              'Sudden cry onset\nTemperature sensor (too hot/cold)\nMoisture sensor (wet diaper)\nIncreased body movement',
+          'Sudden cry onset\nTemperature sensor (too hot/cold)\nMoisture sensor (wet diaper)\nIncreased body movement',
           'Indicator': 'Environmental or physical discomfort',
           'What to Do':
-              'Check and change diaper if needed\nAdjust clothing or room temperature\nReposition the baby for comfort',
+          'Check and change diaper if needed\nAdjust clothing or room temperature\nReposition the baby for comfort',
         };
         break;
       case 'Pain':
         details = {
           'Cry Pattern': 'Loud, sharp, high-pitched, continuous',
           'Detected By':
-              'High audio frequency and amplitude\nProlonged crying with no pauses\nStrong, erratic movements (motion sensor)',
+          'High audio frequency and amplitude\nProlonged crying with no pauses\nStrong, erratic movements (motion sensor)',
           'Indicator': 'Possible pain, illness, or distress',
           'What to Do':
-              'Check for signs of pain (teething, gas, fever)\nComfort and soothe the baby\nSeek medical attention if crying continues',
+          'Check for signs of pain (teething, gas, fever)\nComfort and soothe the baby\nSeek medical attention if crying continues',
         };
         break;
       default:
@@ -954,6 +1039,8 @@ class _MainMenuState extends State<MainMenu> {
           details: details,
           userId: _user['id'],
           segmentPredictions: _segmentPredictions,
+          confidence: _confidence,
+          matchedFile: _matchedFile,
         ),
       ),
     ).then((_) => _refreshCryCounts());

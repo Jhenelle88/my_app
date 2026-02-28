@@ -28,18 +28,20 @@ class CryBehaviorPage extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16.0,
-          mainAxisSpacing: 16.0,
-          children: [
-            _buildReasonButton(context, 'Sleeping', Icons.nightlight_round, Colors.blue),
-            _buildReasonButton(context, 'Hunger', Icons.restaurant_menu, Colors.green),
-            _buildReasonButton(context, 'Pain', Icons.healing, Colors.orange),
-            _buildReasonButton(context, 'Discomfort', Icons.thermostat, Colors.purple),
-          ],
+        child: Center(
+          child: GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 16.0,
+            mainAxisSpacing: 16.0,
+            children: [
+              _buildReasonButton(context, 'Sleeping', Icons.nightlight_round, Colors.blue),
+              _buildReasonButton(context, 'Hunger', Icons.restaurant_menu, Colors.green),
+              _buildReasonButton(context, 'Pain', Icons.healing, Colors.orange),
+              _buildReasonButton(context, 'Discomfort', Icons.thermostat, Colors.purple),
+            ],
+          ),
         ),
       ),
     );

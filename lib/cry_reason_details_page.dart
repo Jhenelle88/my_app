@@ -9,6 +9,9 @@ class CryReasonDetailsPage extends StatefulWidget {
   final String? imagePath;
   final int userId;
   final List<String> segmentPredictions;
+  final String confidence;
+  final String matchedFile;
+  final String rawScores;
 
   const CryReasonDetailsPage({
     super.key,
@@ -17,6 +20,9 @@ class CryReasonDetailsPage extends StatefulWidget {
     this.imagePath,
     required this.userId,
     this.segmentPredictions = const [],
+    this.confidence = '',
+    this.matchedFile = '',
+    this.rawScores = '',
   });
 
   @override
@@ -112,72 +118,88 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
     final String mainText = _getMainTextForReason(widget.reason);
 
     return Scaffold(
-      backgroundColor: backgroundColor, // Set solid background color
-      body: widget.details.isNotEmpty
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ListView.builder(
-                  itemCount: widget.details.entries.length,
-                  itemBuilder: (context, index) {
-                    final entry = widget.details.entries.elementAt(index);
-                    final lines = entry.value.split('\n');
-                    return Card(
-                      elevation: 4.0,
-                      margin: const EdgeInsets.only(bottom: 16.0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(_getIconForDetail(entry.key), color: reasonColor, size: 28),
-                                const SizedBox(width: 12.0),
-                                Expanded(
-                                  child: Text(
-                                    entry.key,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20.0,
-                                      color: reasonColor,
+      appBar: AppBar(
+        title: Text(widget.reason),
+        backgroundColor: reasonColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.details.isNotEmpty)
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: widget.details.entries.length,
+                    itemBuilder: (context, index) {
+                      final entry = widget.details.entries.elementAt(index);
+                      final lines = entry.value.split('\n');
+                      return Card(
+                        elevation: 4.0,
+                        margin: const EdgeInsets.only(bottom: 16.0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(_getIconForDetail(entry.key), color: reasonColor, size: 28),
+                                  const SizedBox(width: 12.0),
+                                  Expanded(
+                                    child: Text(
+                                      entry.key,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20.0,
+                                        color: reasonColor,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const Divider(height: 24.0, thickness: 1.0),
-                            ...lines.map((line) => Padding(
-                                  padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
-                                        child: Icon(Icons.arrow_right, color: Colors.blueGrey[300], size: 16),
-                                      ),
-                                      const SizedBox(width: 8.0),
-                                      Expanded(
-                                        child: Text(
-                                          line,
-                                          style: TextStyle(fontSize: 16.0, height: 1.4, color: Colors.blueGrey[800]),
+                                ],
+                              ),
+                              const Divider(height: 24.0, thickness: 1.0),
+                              ...lines.map((line) => Padding(
+                                    padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Icon(Icons.arrow_right, color: Colors.blueGrey[300], size: 16),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ))
-                                .toList(),
-                          ],
+                                        const SizedBox(width: 8.0),
+                                        Expanded(
+                                          child: Text(
+                                            line,
+                                            style: TextStyle(fontSize: 16.0, height: 1.4, color: Colors.blueGrey[800]),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ))
+                                  .toList(),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            )
-          : (widget.imagePath != null
-              ? Center(
+              if (widget.imagePath != null)
+                Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: SingleChildScrollView(
@@ -200,16 +222,40 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
                                 ),
                               ),
                               const SizedBox(height: 16.0),
-                              if (widget.segmentPredictions.isNotEmpty)
+                              if (widget.segmentPredictions.isNotEmpty || widget.confidence.isNotEmpty || widget.matchedFile.isNotEmpty || widget.rawScores.isNotEmpty)
                                 ExpansionTile(
-                                  title: Text('Check Results Here', style: TextStyle(color: reasonColor, fontWeight: FontWeight.bold)),
+                                  title: Text('Check Result', style: TextStyle(color: reasonColor, fontWeight: FontWeight.bold)),
                                   onExpansionChanged: (bool expanded) {
                                     setState(() {
                                       _isExpanded = expanded;
                                     });
                                   },
                                   initiallyExpanded: _isExpanded,
-                                  children: widget.segmentPredictions.map((prediction) => ListTile(title: Text(prediction))).toList(),
+                                  children: [
+                                    if (widget.confidence.isNotEmpty)
+                                      ListTile(
+                                        title: const Text('Confidence', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        subtitle: Text(widget.confidence),
+                                        leading: Icon(Icons.bar_chart, color: reasonColor),
+                                      ),
+                                    if (widget.rawScores.isNotEmpty)
+                                      ListTile(
+                                        title: const Text('Raw Scores', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        subtitle: Text(widget.rawScores),
+                                        leading: Icon(Icons.list, color: reasonColor),
+                                      ),
+                                    if (widget.matchedFile.isNotEmpty)
+                                      ListTile(
+                                        title: const Text('Matched File', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        subtitle: Text(widget.matchedFile),
+                                        leading: Icon(Icons.audio_file, color: reasonColor),
+                                      ),
+                                    if (widget.segmentPredictions.isNotEmpty)
+                                      ...widget.segmentPredictions.map((prediction) => ListTile(
+                                        title: Text(prediction),
+                                        leading: Icon(Icons.segment, color: reasonColor.withOpacity(0.5)),
+                                      )).toList(),
+                                  ],
                                 ),
                               ConstrainedBox(
                                 constraints: BoxConstraints(
@@ -264,10 +310,11 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
                       ),
                     ),
                   ),
-                )
-              : const Center(
-                  child: Text('No details to display.'),
-                )),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
