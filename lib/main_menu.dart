@@ -285,17 +285,42 @@ class _MainMenuState extends State<MainMenu> {
             'What to Do': 'Check and change diaper if needed\nAdjust clothing or room temperature\nReposition the baby for comfort',
           };
           break;
+        case 'non_cry':
+        case 'non-cry':
+        case 'non cry':
+        case 'noise':
+        case 'silence':
+        case 'background':
+        case 'ambient':
+        case 'none':
         default:
           setState(() {
-            _prediction = prediction != null ? "Cry Detected: ${data['prediction']}" : 'Unknown';
+            _prediction = "Cry Detected: Non Cry";
             _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
             _confidence = confidenceVal != null ? "Confidence: ${(confidenceVal * 100).toStringAsFixed(1)}%" : "";
-            _matchedFile = matchedFileVal != null ? "Matched Pristine File: $matchedFileVal" : "";
+            _matchedFile = matchedFileVal != null ? "Matched: $matchedFileVal" : "";
             _rawScores = formattedRaw;
-            _detectedImagePath = null;
+            _detectedImagePath = 'assets/NON CRY.png';
             _isLoading = false;
           });
-          _showErrorDialog("Analysis Complete", "Result: '${data['prediction']}'\n$_confidence", context);
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CryReasonDetailsPage(
+                reason: 'Non Cry',
+                details: const {},
+                imagePath: 'assets/NON CRY.png',
+                userId: _user['id'],
+                segmentPredictions: _segmentPredictions,
+                confidence: _confidence,
+                matchedFile: _matchedFile,
+                rawScores: _rawScores,
+              ),
+            ),
+          ).then((_) {
+            _refreshCryCounts();
+          });
           return;
       }
 
@@ -1085,6 +1110,7 @@ class _MainMenuState extends State<MainMenu> {
           segmentPredictions: _segmentPredictions,
           confidence: _confidence,
           matchedFile: _matchedFile,
+          rawScores: _rawScores,
         ),
       ),
     ).then((_) => _refreshCryCounts());

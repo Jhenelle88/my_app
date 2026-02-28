@@ -6,19 +6,119 @@ import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:my_app/cry_reason_details_page.dart';
 
-class CryBehaviorTestingPage extends StatefulWidget {
+class CryBehaviorTestingPage extends StatelessWidget {
   final int userId;
 
   const CryBehaviorTestingPage({super.key, required this.userId});
 
   @override
-  State<CryBehaviorTestingPage> createState() => _CryBehaviorTestingPageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cry Behavior (Testing)',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.lightBlue[400],
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Container(
+        color: Colors.lightBlue[50],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _CryBehaviorTestingContent(userId: userId),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              _buildReasonForCrySection(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReasonForCrySection(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12.0,
+      mainAxisSpacing: 12.0,
+      childAspectRatio: 1.1,
+      children: [
+        _buildReasonButton(context, 'Sleeping', Icons.nightlight_round, Colors.blue, 'assets/sleeping.png'),
+        _buildReasonButton(context, 'Discomfort', Icons.thermostat, Colors.purple, 'assets/discomfort.png'),
+        _buildReasonButton(context, 'Hunger', Icons.restaurant_menu, Colors.green, 'assets/hunger.png'),
+        _buildReasonButton(context, 'Pain', Icons.healing, Colors.orange, 'assets/pain.png'),
+        _buildReasonButton(context, 'Non Cry', Icons.do_not_disturb_on_outlined, Colors.grey, 'assets/NON CRY.png'),
+      ],
+    );
+  }
+
+  Widget _buildReasonButton(BuildContext context, String reason, IconData icon, Color color, String imagePath) {
+    return Card(
+      elevation: 2.0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CryReasonDetailsPage(
+                reason: reason,
+                details: const {},
+                imagePath: imagePath,
+                userId: userId,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(10.0),
+        child: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 24, color: color),
+              const SizedBox(height: 2.0),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    reason,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.blueGrey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
+class _CryBehaviorTestingContent extends StatefulWidget {
+  final int userId;
+  const _CryBehaviorTestingContent({required this.userId});
+
+  @override
+  State<_CryBehaviorTestingContent> createState() =>
+      _CryBehaviorTestingContentState();
+}
+
+class _CryBehaviorTestingContentState extends State<_CryBehaviorTestingContent> {
   String _serverUrl = '';
   bool _isLoading = false;
-  String _prediction = 'No test performed yet'; 
+  String _prediction = 'No test performed yet';
   String _confidence = '';
   String _rawScores = '';
   List<String> _segmentPredictions = [];
@@ -38,7 +138,8 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
       final broadcastAddr = InternetAddress('255.255.255.255');
       socket.send(utf8.encode('CRYCOM_DISCOVER'), broadcastAddr, 5001);
 
-      await for (RawSocketEvent event in socket.timeout(const Duration(seconds: 3))) {
+      await for (RawSocketEvent event
+          in socket.timeout(const Duration(seconds: 3))) {
         if (event == RawSocketEvent.read) {
           Datagram? dg = socket.receive();
           if (dg != null) {
@@ -119,10 +220,12 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
     });
 
     try {
-      var request = http.MultipartRequest('POST', Uri.parse('$_serverUrl/analyze/file'));
+      var request =
+          http.MultipartRequest('POST', Uri.parse('$_serverUrl/analyze/file'));
       request.files.add(await http.MultipartFile.fromPath('file', audioFile.path));
 
-      var streamedResponse = await request.send().timeout(const Duration(seconds: 15));
+      var streamedResponse =
+          await request.send().timeout(const Duration(seconds: 15));
       var response = await http.Response.fromStream(streamedResponse);
 
       _handleServerResponse(response.statusCode, response.body);
@@ -158,18 +261,36 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
 
       String? reason;
       String? img;
+
       switch (predictionVal) {
-        case 'sleepiness': reason = 'Sleeping'; img = 'assets/sleeping.png'; break;
-        case 'hunger': reason = 'Hunger'; img = 'assets/hunger.png'; break;
-        case 'pain': reason = 'Pain'; img = 'assets/pain.png'; break;
-        case 'discomfort': reason = 'Discomfort'; img = 'assets/discomfort.png'; break;
-        default: reason = data['prediction'] ?? 'Unknown'; img = null;
+        case 'sleepiness':
+          reason = 'Sleeping';
+          img = 'assets/sleeping.png';
+          break;
+        case 'hungry':
+        case 'hunger':
+          reason = 'Hunger';
+          img = 'assets/hunger.png';
+          break;
+        case 'pain':
+          reason = 'Pain';
+          img = 'assets/pain.png';
+          break;
+        case 'discomfort':
+          reason = 'Discomfort';
+          img = 'assets/discomfort.png';
+          break;
+        default:
+          reason = 'Non Cry';
+          img = 'assets/NON CRY.png';
       }
 
       setState(() {
         _prediction = reason!;
         _detectedImagePath = img;
-        _confidence = confidenceVal != null ? "Confidence: ${(confidenceVal * 100).toStringAsFixed(1)}%" : "";
+        _confidence = confidenceVal != null
+            ? "Confidence: ${(confidenceVal * 100).toStringAsFixed(1)}%"
+            : "";
         _rawScores = formattedRaw;
         _segmentPredictions = segments?.map((s) => s.toString()).toList() ?? [];
         _matchedFile = data['matched_file'] ?? "";
@@ -186,34 +307,11 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cry Behavior (Testing)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.lightBlue[400],
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Container(
-        color: Colors.lightBlue[50],
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildLiveTestingSection(),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              const Text("Cry Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-              const SizedBox(height: 8),
-              _buildReasonForCrySection(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+    final Color? reasonColor = _prediction != 'No test performed yet' &&
+            !_prediction.startsWith('Analysis Failed')
+        ? _getColorForReason(_prediction)
+        : Colors.blueGrey;
 
-  Widget _buildLiveTestingSection() {
     return Card(
       elevation: 4.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
@@ -226,11 +324,17 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
             const Text(
               'Analyze Cry via Pi',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueGrey),
             ),
             const SizedBox(height: 12),
             if (_isLoading)
-              const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
+              const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: CircularProgressIndicator()))
             else
               Row(
                 children: [
@@ -240,9 +344,10 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
                       icon: const Icon(Icons.mic, size: 16),
                       label: const Text("Mic", overflow: TextOverflow.ellipsis),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue, 
+                        backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 8),
                         textStyle: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -254,9 +359,10 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
                       icon: const Icon(Icons.upload_file, size: 16),
                       label: const Text("File", overflow: TextOverflow.ellipsis),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green, 
+                        backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 8),
                         textStyle: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -264,31 +370,46 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
                 ],
               ),
             const SizedBox(height: 8),
-            _buildResultExpansionTile(),
+            _buildResultExpansionTile(reasonColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildResultExpansionTile() {
+  Color _getColorForReason(String reason) {
+    switch (reason) {
+      case 'Sleeping':
+        return Colors.blue;
+      case 'Hunger':
+        return Colors.green;
+      case 'Pain':
+        return Colors.orange;
+      case 'Discomfort':
+        return Colors.purple;
+      case 'Non Cry':
+        return Colors.grey;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  Widget _buildResultExpansionTile(Color? reasonColor) {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-        title: const Text("Check Result", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        subtitle: Text(_prediction, style: TextStyle(color: Colors.blueGrey[700], fontSize: 12)),
+        title: const Text("Check Result",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text(_prediction,
+            style: TextStyle(color: Colors.blueGrey[700], fontSize: 12)),
         initiallyExpanded: _isResultExpanded,
         onExpansionChanged: (val) => setState(() => _isResultExpanded = val),
         children: [
-          if (_detectedImagePath != null)
-            Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Image.asset(_detectedImagePath!, height: 60),
-            ),
           if (_confidence.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
               child: Row(
                 children: [
                   const Icon(Icons.bar_chart, color: Colors.blue, size: 16),
@@ -298,18 +419,22 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
               ),
             ),
           if (_rawScores.isNotEmpty)
-             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(Icons.list, color: Colors.green, size: 16),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(_rawScores, style: const TextStyle(fontSize: 11))),
+                  Expanded(
+                      child: Text(_rawScores,
+                          style: const TextStyle(fontSize: 11))),
                 ],
               ),
             ),
-          if (_prediction != 'No test performed yet' && !_prediction.startsWith('Analysis Failed'))
+          if (_prediction != 'No test performed yet' &&
+              !_prediction.startsWith('Analysis Failed'))
             Padding(
               padding: const EdgeInsets.all(4.0),
               child: SizedBox(
@@ -333,81 +458,17 @@ class _CryBehaviorTestingPageState extends State<CryBehaviorTestingPage> {
                     );
                   },
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: reasonColor,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 0),
                     minimumSize: const Size(0, 32),
                   ),
-                  child: const Text("View Details", style: TextStyle(fontSize: 12)),
+                  child:
+                      const Text("View Details", style: TextStyle(fontSize: 12)),
                 ),
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildReasonForCrySection() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10.0,
-      mainAxisSpacing: 10.0,
-      childAspectRatio: 1.2,
-      children: [
-        _buildReasonButton('Sleeping', Icons.nightlight_round, Colors.blue, 'assets/sleeping.png'),
-        _buildReasonButton('Hunger', Icons.restaurant_menu, Colors.green, 'assets/hunger.png'),
-        _buildReasonButton('Pain', Icons.healing, Colors.orange, 'assets/pain.png'),
-        _buildReasonButton('Discomfort', Icons.thermostat, Colors.purple, 'assets/discomfort.png'),
-      ],
-    );
-  }
-
-  Widget _buildReasonButton(String reason, IconData icon, Color color, String imagePath) {
-    return Card(
-      elevation: 2.0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-      child: InkWell(
-        onTap: () => _showReasonDetails(reason, imagePath),
-        borderRadius: BorderRadius.circular(10.0),
-        child: Padding(
-          padding: const EdgeInsets.all(4.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 24, color: color),
-              const SizedBox(height: 2.0),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    reason,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.blueGrey[800],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showReasonDetails(String reason, String imagePath) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CryReasonDetailsPage(
-          reason: reason,
-          details: const {},
-          imagePath: imagePath,
-          userId: widget.userId,
-        ),
       ),
     );
   }

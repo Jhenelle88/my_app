@@ -42,6 +42,8 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
         return Colors.orange;
       case 'Discomfort':
         return Colors.purple;
+      case 'Non Cry':
+        return Colors.blueGrey;
       default:
         return Colors.grey;
     }
@@ -57,6 +59,8 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
         return Colors.orange[50]!;
       case 'Discomfort':
         return Colors.purple[50]!;
+      case 'Non Cry':
+        return Colors.blueGrey[50]!;
       default:
         return Colors.grey[200]!;
     }
@@ -72,6 +76,8 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
         return 'Baby has Abdominal Pain!';
       case 'Discomfort':
         return 'Baby is in Discomfort!';
+      case 'Non Cry':
+        return 'No Cry Detected!';
       default:
         return 'Cry Detected!';
     }
@@ -92,7 +98,6 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
     await DatabaseHelper.instance.insertCryRecord(newRecord);
 
     if (mounted) {
-      // Check if the current page can be popped, otherwise do nothing.
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -114,104 +119,104 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (widget.imagePath != null)
-                  Card(
-                    color: Colors.white,
-                    elevation: 8.0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            mainText,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: reasonColor,
+                Card(
+                  color: Colors.white,
+                  elevation: 8.0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          mainText,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: reasonColor,
+                          ),
+                        ),
+                        const SizedBox(height: 12.0),
+                        Theme(
+                          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            leading: widget.imagePath != null ? Image.asset(widget.imagePath!, height: 32) : null,
+                            title: Text('Check Result', style: TextStyle(color: reasonColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                            tilePadding: EdgeInsets.zero,
+                            initiallyExpanded: _isExpanded,
+                            onExpansionChanged: (bool expanded) {
+                              setState(() {
+                                _isExpanded = expanded;
+                              });
+                            },
+                            children: [
+                              if (widget.confidence.isNotEmpty)
+                                ListTile(
+                                  dense: true,
+                                  title: const Text('Confidence', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  subtitle: Text(widget.confidence, style: const TextStyle(fontSize: 12)),
+                                  leading: Icon(Icons.bar_chart, color: reasonColor, size: 20),
+                                ),
+                              if (widget.rawScores.isNotEmpty)
+                                ListTile(
+                                  dense: true,
+                                  title: const Text('Raw Scores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  subtitle: Text(widget.rawScores, style: const TextStyle(fontSize: 11)),
+                                  leading: Icon(Icons.list, color: reasonColor, size: 20),
+                                ),
+                              if (widget.matchedFile.isNotEmpty)
+                                ListTile(
+                                  dense: true,
+                                  title: const Text('Matched File', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  subtitle: Text(widget.matchedFile, style: const TextStyle(fontSize: 11)),
+                                  leading: Icon(Icons.audio_file, color: reasonColor, size: 20),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (widget.imagePath != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            child: Image.asset(
+                              widget.imagePath!,
+                              fit: BoxFit.contain,
+                              height: MediaQuery.of(context).size.height * 0.25,
                             ),
                           ),
-                          const SizedBox(height: 12.0),
-                          if (widget.segmentPredictions.isNotEmpty || widget.confidence.isNotEmpty || widget.matchedFile.isNotEmpty || widget.rawScores.isNotEmpty)
-                            Theme(
-                              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                              child: ExpansionTile(
-                                title: Text('Check Result', style: TextStyle(color: reasonColor, fontWeight: FontWeight.bold, fontSize: 14)),
-                                tilePadding: EdgeInsets.zero,
-                                initiallyExpanded: _isExpanded,
-                                onExpansionChanged: (bool expanded) {
-                                  setState(() {
-                                    _isExpanded = expanded;
-                                  });
-                                },
-                                children: [
-                                  if (widget.confidence.isNotEmpty)
-                                    ListTile(
-                                      dense: true,
-                                      title: const Text('Confidence', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      subtitle: Text(widget.confidence, style: const TextStyle(fontSize: 12)),
-                                      leading: Icon(Icons.bar_chart, color: reasonColor, size: 20),
-                                    ),
-                                  if (widget.rawScores.isNotEmpty)
-                                    ListTile(
-                                      dense: true,
-                                      title: const Text('Raw Scores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      subtitle: Text(widget.rawScores, style: const TextStyle(fontSize: 11)),
-                                      leading: Icon(Icons.list, color: reasonColor, size: 20),
-                                    ),
-                                  if (widget.matchedFile.isNotEmpty)
-                                    ListTile(
-                                      dense: true,
-                                      title: const Text('Matched File', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      subtitle: Text(widget.matchedFile, style: const TextStyle(fontSize: 11)),
-                                      leading: Icon(Icons.audio_file, color: reasonColor, size: 20),
-                                    ),
-                                ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _handleFeedback(true),
+                                icon: const Icon(Icons.check, color: Colors.white, size: 18),
+                                label: const Text('Correct', style: TextStyle(color: Colors.white, fontSize: 14)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                ),
                               ),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16.0),
-                              child: Image.asset(
-                                widget.imagePath!,
-                                fit: BoxFit.contain,
-                                height: MediaQuery.of(context).size.height * 0.25, // Limit image height
+                            const SizedBox(width: 12.0),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _handleFeedback(false),
+                                icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                                label: const Text('Incorrect', style: TextStyle(color: Colors.white, fontSize: 14)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                ),
                               ),
                             ),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _handleFeedback(true),
-                                    icon: const Icon(Icons.check, color: Colors.white, size: 18),
-                                    label: const Text('Correct', style: TextStyle(color: Colors.white, fontSize: 14)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12.0),
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _handleFeedback(false),
-                                    icon: const Icon(Icons.close, color: Colors.white, size: 18),
-                                    label: const Text('Incorrect', style: TextStyle(color: Colors.white, fontSize: 14)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-                                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
+                ),
               ],
             ),
           ),
