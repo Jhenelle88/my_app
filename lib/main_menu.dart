@@ -15,7 +15,6 @@ import 'package:my_app/cry_reason_details_page.dart';
 import 'package:my_app/database_helper.dart';
 import 'package:my_app/faq_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
-import 'package:my_app/cry_classifier.dart';
 
 class MainMenu extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -499,17 +498,6 @@ class _MainMenuState extends State<MainMenu> {
                 ).then((_) => _refreshCryCounts());
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.mic, color: Colors.lightBlue),
-              title: const Text('Cry Classifier'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CryClassifierPage()),
-                );
-              },
-            ),
             const Divider(),
             ListTile(
               title: Text(
@@ -632,11 +620,6 @@ class _MainMenuState extends State<MainMenu> {
           });
         },
         children: [
-          if (_detectedImagePath != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Center(child: Image.asset(_detectedImagePath!, height: 100)),
-            ),
           if (_prediction != 'Waiting for input...')
             Padding(
               padding: const EdgeInsets.all(16.0),
