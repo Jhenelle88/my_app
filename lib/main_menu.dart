@@ -123,6 +123,7 @@ class _MainMenuState extends State<MainMenu> {
       _matchedFile = "";
       _rawScores = "";
       _detectedImagePath = null;
+      _segmentPredictions = [];
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Recording & Analyzing via Pi...'),
@@ -171,6 +172,7 @@ class _MainMenuState extends State<MainMenu> {
       _matchedFile = "";
       _rawScores = "";
       _detectedImagePath = null;
+      _segmentPredictions = [];
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Uploading & Analyzing via Pi...'),
@@ -240,22 +242,49 @@ class _MainMenuState extends State<MainMenu> {
 
       String? reason;
       String? imagePath;
+      Map<String, String> details = {};
+
       switch (prediction) {
         case 'sleepiness':
           reason = 'Sleeping';
           imagePath = 'assets/sleeping.png';
+          details = {
+            'Cry Pattern': 'Soft, rhythmic, low intensity',
+            'Detected By': 'Low audio frequency\nShort cry duration\nMinimal body movement (motion sensor)',
+            'Indicator': 'Baby is drowsy or transitioning to sleep',
+            'What to Do': 'Dim lights and reduce noise\nGently rock or swaddle the baby\nPlace the baby in a comfortable sleeping position',
+          };
           break;
+        case 'hungry':
         case 'hunger':
           reason = 'Hunger';
           imagePath = 'assets/hunger.png';
+          details = {
+            'Cry Pattern': 'Repetitive, rising pitch, rhythmic',
+            'Detected By': 'Increasing cry intensity over time\nRegular intervals between cries\nTime elapsed since last feeding (timer/log data)',
+            'Indicator': 'Feeding likely needed',
+            'What to Do': 'Feed the baby immediately\nEnsure proper feeding position\nBurp the baby after feeding',
+          };
           break;
         case 'pain':
           reason = 'Pain';
           imagePath = 'assets/pain.png';
+          details = {
+            'Cry Pattern': 'Loud, sharp, high-pitched, continuous',
+            'Detected By': 'High audio frequency and amplitude\nProlonged crying with no pauses\nStrong, erratic movements (motion sensor)',
+            'Indicator': 'Possible pain, illness, or distress',
+            'What to Do': 'Check for signs of pain (teething, gas, fever)\nComfort and soothe the baby\nSeek medical attention if crying continues',
+          };
           break;
         case 'discomfort':
           reason = 'Discomfort';
           imagePath = 'assets/discomfort.png';
+          details = {
+            'Cry Pattern': 'Irregular, fussy, moderate pitch',
+            'Detected By': 'Sudden cry onset\nTemperature sensor (too hot/cold)\nMoisture sensor (wet diaper)\nIncreased body movement',
+            'Indicator': 'Environmental or physical discomfort',
+            'What to Do': 'Check and change diaper if needed\nAdjust clothing or room temperature\nReposition the baby for comfort',
+          };
           break;
         default:
           setState(() {
@@ -267,6 +296,7 @@ class _MainMenuState extends State<MainMenu> {
             _detectedImagePath = null;
             _isLoading = false;
           });
+          _showErrorDialog("Analysis Complete", "Result: '${data['prediction']}'\n$_confidence", context);
           return;
       }
 
@@ -286,7 +316,7 @@ class _MainMenuState extends State<MainMenu> {
         MaterialPageRoute(
           builder: (context) => CryReasonDetailsPage(
             reason: reason!,
-            details: const {},
+            details: details,
             imagePath: imagePath!,
             userId: _user['id'],
             segmentPredictions: _segmentPredictions,
@@ -315,7 +345,7 @@ class _MainMenuState extends State<MainMenu> {
       _prediction = "Connection Failed";
       _confidence = error.toString();
     });
-    _showErrorDialog(
+    _showNetworkErrorDialog(
         "Network Error",
         "Could not connect to Raspberry Pi.\n\n$error",
         context);
@@ -323,6 +353,26 @@ class _MainMenuState extends State<MainMenu> {
 
   void _showErrorDialog(String title, String content, BuildContext context) {
     showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(child: Text(content)),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNetworkErrorDialog(String title, String content, BuildContext context) {
+     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -566,19 +616,9 @@ class _MainMenuState extends State<MainMenu> {
             color: Colors.red[800],
           ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _prediction,
-              style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
-            ),
-            if (_confidence.isNotEmpty)
-              Text(
-                _confidence,
-                style: TextStyle(fontSize: 14, color: Colors.blueAccent[700]),
-              ),
-          ],
+        subtitle: Text(
+          _prediction,
+          style: TextStyle(fontSize: 16.0, color: Colors.red[700]),
         ),
         trailing: Icon(
           _isNotificationExpanded
@@ -592,13 +632,34 @@ class _MainMenuState extends State<MainMenu> {
           });
         },
         children: [
+          if (_detectedImagePath != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Center(child: Image.asset(_detectedImagePath!, height: 100)),
+            ),
+          if (_prediction != 'Waiting for input...')
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Check Result", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey)),
+                  const Divider(),
+                  if (_confidence.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Text(_confidence, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
+                  if (_rawScores.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(_rawScores, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
+                    ),
+                ],
+              ),
+            ),
           if (_matchedFile.isNotEmpty)
             ListTile(title: Text(_matchedFile, style: const TextStyle(fontStyle: FontStyle.italic))),
-          if (_rawScores.isNotEmpty)
-            ListTile(
-              title: const Text("Raw Scores", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              subtitle: Text(_rawScores, style: const TextStyle(fontSize: 13)),
-            ),
           ..._segmentPredictions
               .map((segment) => ListTile(title: Text(segment)))
               .toList(),
