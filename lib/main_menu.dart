@@ -1,3 +1,4 @@
+
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
@@ -12,6 +13,7 @@ import 'package:my_app/basic_information_page.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
+import 'package:my_app/cry_reason_info_page.dart'; // Import the new info page
 import 'package:my_app/database_helper.dart';
 import 'package:my_app/faq_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
@@ -88,7 +90,7 @@ class _MainMenuState extends State<MainMenu> {
             final message = utf8.decode(dg.data);
             if (message == 'CRYCOM_SERVER') {
               String discoveredIp = dg.address.address;
-              _serverUrl = 'http://$discoveredIp:5000';
+              _serverUrl = 'http://$discoveredIp:5002';
               print('✅ Found Raspberry Pi at: $_serverUrl');
               socket.close();
               return true;
@@ -241,58 +243,25 @@ class _MainMenuState extends State<MainMenu> {
 
       String? reason;
       String? imagePath;
-      Map<String, String> details = {};
 
       switch (prediction) {
         case 'sleepiness':
           reason = 'Sleeping';
           imagePath = 'assets/sleeping.png';
-          details = {
-            'Cry Pattern': 'Soft, rhythmic, low intensity',
-            'Detected By': 'Low audio frequency\nShort cry duration\nMinimal body movement (motion sensor)',
-            'Indicator': 'Baby is drowsy or transitioning to sleep',
-            'What to Do': 'Dim lights and reduce noise\nGently rock or swaddle the baby\nPlace the baby in a comfortable sleeping position',
-          };
           break;
         case 'hungry':
         case 'hunger':
           reason = 'Hunger';
           imagePath = 'assets/hunger.png';
-          details = {
-            'Cry Pattern': 'Repetitive, rising pitch, rhythmic',
-            'Detected By': 'Increasing cry intensity over time\nRegular intervals between cries\nTime elapsed since last feeding (timer/log data)',
-            'Indicator': 'Feeding likely needed',
-            'What to Do': 'Feed the baby immediately\nEnsure proper feeding position\nBurp the baby after feeding',
-          };
           break;
         case 'pain':
           reason = 'Pain';
           imagePath = 'assets/pain.png';
-          details = {
-            'Cry Pattern': 'Loud, sharp, high-pitched, continuous',
-            'Detected By': 'High audio frequency and amplitude\nProlonged crying with no pauses\nStrong, erratic movements (motion sensor)',
-            'Indicator': 'Possible pain, illness, or distress',
-            'What to Do': 'Check for signs of pain (teething, gas, fever)\nComfort and soothe the baby\nSeek medical attention if crying continues',
-          };
           break;
         case 'discomfort':
           reason = 'Discomfort';
           imagePath = 'assets/discomfort.png';
-          details = {
-            'Cry Pattern': 'Irregular, fussy, moderate pitch',
-            'Detected By': 'Sudden cry onset\nTemperature sensor (too hot/cold)\nMoisture sensor (wet diaper)\nIncreased body movement',
-            'Indicator': 'Environmental or physical discomfort',
-            'What to Do': 'Check and change diaper if needed\nAdjust clothing or room temperature\nReposition the baby for comfort',
-          };
           break;
-        case 'non_cry':
-        case 'non-cry':
-        case 'non cry':
-        case 'noise':
-        case 'silence':
-        case 'background':
-        case 'ambient':
-        case 'none':
         default:
           setState(() {
             _prediction = "Cry Detected: Non Cry";
@@ -340,7 +309,7 @@ class _MainMenuState extends State<MainMenu> {
         MaterialPageRoute(
           builder: (context) => CryReasonDetailsPage(
             reason: reason!,
-            details: details,
+            details: const {}, // Pass empty details for detection results
             imagePath: imagePath!,
             userId: _user['id'],
             segmentPredictions: _segmentPredictions,
@@ -427,7 +396,7 @@ class _MainMenuState extends State<MainMenu> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2100), // Allow picking future dates
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -439,10 +408,6 @@ class _MainMenuState extends State<MainMenu> {
 
   void _changeDate(int days) {
     final newDate = _selectedDate.add(Duration(days: days));
-    if (newDate.isAfter(DateTime.now()) &&
-        !DateUtils.isSameDay(newDate, DateTime.now())) {
-      return;
-    }
     setState(() {
       _selectedDate = newDate;
       _refreshCryCounts();
@@ -811,12 +776,9 @@ class _MainMenuState extends State<MainMenu> {
                     ),
                   ),
                 ),
-                Opacity(
-                  opacity: isToday ? 0.0 : 1.0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_right),
-                    onPressed: isToday ? null : () => _changeDate(1),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_right),
+                  onPressed: () => _changeDate(1), // Always allow navigating forward
                 ),
               ],
             ),
@@ -1055,8 +1017,10 @@ class _MainMenuState extends State<MainMenu> {
 
   void _showReasonDetails(String reason) {
     Map<String, String> details;
+    String imagePath;
     switch (reason) {
       case 'Sleeping':
+        imagePath = 'assets/sleeping.png';
         details = {
           'Cry Pattern': 'Soft, rhythmic, low intensity',
           'Detected By':
@@ -1067,6 +1031,7 @@ class _MainMenuState extends State<MainMenu> {
         };
         break;
       case 'Hunger':
+        imagePath = 'assets/hunger.png';
         details = {
           'Cry Pattern': 'Repetitive, rising pitch, rhythmic',
           'Detected By':
@@ -1077,6 +1042,7 @@ class _MainMenuState extends State<MainMenu> {
         };
         break;
       case 'Discomfort':
+        imagePath = 'assets/discomfort.png';
         details = {
           'Cry Pattern': 'Irregular, fussy, moderate pitch',
           'Detected By':
@@ -1087,6 +1053,7 @@ class _MainMenuState extends State<MainMenu> {
         };
         break;
       case 'Pain':
+        imagePath = 'assets/pain.png';
         details = {
           'Cry Pattern': 'Loud, sharp, high-pitched, continuous',
           'Detected By':
@@ -1097,20 +1064,17 @@ class _MainMenuState extends State<MainMenu> {
         };
         break;
       default:
+        imagePath = 'assets/NON CRY.png';
         details = {};
     }
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CryReasonDetailsPage(
+        builder: (context) => CryReasonInfoPage(
           reason: reason,
           details: details,
-          userId: _user['id'],
-          segmentPredictions: _segmentPredictions,
-          confidence: _confidence,
-          matchedFile: _matchedFile,
-          rawScores: _rawScores,
+          imagePath: imagePath,
         ),
       ),
     ).then((_) => _refreshCryCounts());

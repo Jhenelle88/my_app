@@ -35,7 +35,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2100), // Allow picking future dates
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -47,9 +47,6 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
 
   void _changeDate(int days) {
     final newDate = _selectedDate.add(Duration(days: days));
-    if (newDate.isAfter(DateTime.now()) && !DateUtils.isSameDay(newDate, DateTime.now())) {
-      return;
-    }
     setState(() {
       _selectedDate = newDate;
       _refreshHistory();
@@ -144,12 +141,9 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                     ),
                   ),
                 ),
-                Opacity(
-                  opacity: isToday ? 0.0 : 1.0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_right),
-                    onPressed: isToday ? null : () => _changeDate(1),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_right),
+                  onPressed: () => _changeDate(1), // Always allow navigating forward
                 ),
               ],
             ),
