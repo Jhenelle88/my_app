@@ -53,52 +53,6 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
     });
   }
 
-  void _showSegmentsDialog(String? segmentsJson) {
-    if (segmentsJson == null || segmentsJson.isEmpty || segmentsJson == '[]') {
-       showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Segment Predictions'),
-          content: const Text('No segment data available for this record.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    final segments = jsonDecode(segmentsJson) as List<dynamic>;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Segment Predictions'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: segments.length,
-              itemBuilder: (context, index) {
-                return ListTile(title: Text(segments[index].toString()));
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     bool isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
@@ -197,10 +151,6 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                             DataCell(Text(record['output'])),
                             DataCell(Text(record['accuracy'], style: TextStyle(color: record['accuracy'] == 'True' ? Colors.green : Colors.red, fontWeight: FontWeight.bold))),
                           ],
-                          onSelectChanged: (selected) {
-                            // Show dialog when any part of the row is tapped
-                            _showSegmentsDialog(record['segments']);
-                          },
                         );
                       }).toList(),
                     ),
