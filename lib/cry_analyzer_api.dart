@@ -4,17 +4,16 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class CryAnalyzer {
-  final String baseUrl; // e.g., "http://192.168.1.46:5000"
-
+  final String baseUrl;
   CryAnalyzer({required this.baseUrl});
 
   Future<Map<String, dynamic>> analyzeMode1() async {
-    // Microphone (mode 1)
+
     return _postAnalyze({"mode": "1"});
   }
 
   Future<Map<String, dynamic>> analyzeMode3(String category) async {
-    // Random file from category (mode 3)
+
     return _postAnalyze({"mode": "3", "category": category});
   }
 

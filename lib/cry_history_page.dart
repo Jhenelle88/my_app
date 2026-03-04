@@ -35,7 +35,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2100), // Allow picking future dates
+      lastDate: DateTime(2100),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -97,7 +97,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.arrow_right),
-                  onPressed: () => _changeDate(1), // Always allow navigating forward
+                  onPressed: () => _changeDate(1),
                 ),
               ],
             ),
@@ -122,7 +122,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                     elevation: 4.0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
                     child: DataTable(
-                      showCheckboxColumn: false, // Hides the checkbox column
+                      showCheckboxColumn: false,
                       columnSpacing: 38.0,
                       columns: const <DataColumn>[
                         DataColumn(

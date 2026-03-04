@@ -26,7 +26,7 @@ class _CryClassifierPageState extends State<CryClassifierPage> {
 
   List<String> segmentLogs = [];
 
-  // ----------------- HTTP REQUEST -----------------
+
   Future<void> sendRequest(Map<String, dynamic> payload) async {
     setState(() {
       isLoading = true;
@@ -65,14 +65,14 @@ class _CryClassifierPageState extends State<CryClassifierPage> {
     }
   }
 
-  // ----------------- FILE UPLOAD -----------------
+
   Future<void> uploadWavFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['wav'],
     );
 
-    if (result == null) return; // User cancelled
+    if (result == null) return;
 
     setState(() {
       isLoading = true;
@@ -119,7 +119,7 @@ class _CryClassifierPageState extends State<CryClassifierPage> {
     }
   }
 
-  // ----------------- BUTTON BUILDER -----------------
+
   Widget buildButton(String label, VoidCallback onPressed) {
     return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -146,12 +146,12 @@ class _CryClassifierPageState extends State<CryClassifierPage> {
             ),
             const SizedBox(height: 12),
 
-            // 🎤 Mic Test
+
             buildButton("🎤 Mic Test", () => sendRequest({"mode": "1"})),
 
             const SizedBox(height: 10),
 
-            // Category Selector + Random Test
+
             Row(
               children: [
                 const Text("Category: "),
@@ -188,7 +188,7 @@ class _CryClassifierPageState extends State<CryClassifierPage> {
 
             const SizedBox(height: 10),
 
-            // 📁 Upload WAV from Phone
+
             buildButton("📁 Upload WAV from Phone", uploadWavFile),
 
             const SizedBox(height: 20),
@@ -198,7 +198,7 @@ class _CryClassifierPageState extends State<CryClassifierPage> {
 
             const SizedBox(height: 20),
 
-            // ================= RESULT DISPLAY =================
+
             Expanded(
               child: SingleChildScrollView(
                 child: Column(

@@ -12,7 +12,7 @@ import 'package:my_app/basic_information_page.dart';
 import 'package:my_app/cry_behavior_testing_page.dart';
 import 'package:my_app/cry_history_page.dart';
 import 'package:my_app/cry_reason_details_page.dart';
-import 'package:my_app/cry_reason_info_page.dart'; // Import the new info page
+import 'package:my_app/cry_reason_info_page.dart';
 import 'package:my_app/database_helper.dart';
 import 'package:my_app/faq_page.dart';
 import 'package:my_app/terms_and_conditions_page.dart';
@@ -27,7 +27,7 @@ class MainMenu extends StatefulWidget {
 }
 
 class _MainMenuState extends State<MainMenu> {
-  // --- STATE FROM ORIGINAL APP ---
+
   late Map<String, dynamic> _user;
   File? _image;
   bool _isNotificationExpanded = false;
@@ -35,7 +35,7 @@ class _MainMenuState extends State<MainMenu> {
   DateTime _selectedDate = DateTime.now();
   List<String> _segmentPredictions = [];
 
-  // --- STATE FOR RASPBERRY PI CONNECTION ---
+
   String _serverUrl = '';
   bool _isLoading = false;
   String _prediction = 'Waiting for input...';
@@ -56,9 +56,7 @@ class _MainMenuState extends State<MainMenu> {
         _user['id'], DateFormat.yMMMd().format(_selectedDate));
   }
 
-  // =================================================================
-  // ============ RASPBERRY PI CONNECTION & ANALYSIS LOGIC ===========
-  // =================================================================
+
 
   Future<bool> _findServerIP() async {
     setState(() {
@@ -302,7 +300,7 @@ class _MainMenuState extends State<MainMenu> {
         _isLoading = false;
       });
 
-      // Automatically navigate to details page on detection
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -766,7 +764,7 @@ class _MainMenuState extends State<MainMenu> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.arrow_right),
-                  onPressed: () => _changeDate(1), // Always allow navigating forward
+                  onPressed: () => _changeDate(1), 
                 ),
               ],
             ),

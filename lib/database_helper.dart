@@ -17,7 +17,7 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final path = join(documentsDirectory.path, 'app_database.db');
-    // Bumped version to 9 to add confidence and raw_scores columns
+
     return await openDatabase(path, version: 9, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
@@ -56,7 +56,7 @@ class DatabaseHelper {
   }
 
   Future<void> _insertMockData(Database db) async {
-    // Find the first user to assign records to, otherwise default to 1
+
     final List<Map<String, dynamic>> users = await db.query('users', limit: 1);
     int targetUserId = 1;
     if (users.isNotEmpty) {
@@ -66,7 +66,7 @@ class DatabaseHelper {
     final List<String> dates = ['Mar 2, 2026', 'Mar 3, 2026', 'Mar 4, 2026', 'Mar 5, 2026', 'Mar 6, 2026'];
     
     for (String date in dates) {
-      // Check if data already exists for this specific date to avoid duplicates
+
       final List<Map<String, dynamic>> existing = await db.query('cry_history', where: 'date = ?', whereArgs: [date]);
       if (existing.isNotEmpty) continue;
 
@@ -168,12 +168,12 @@ class DatabaseHelper {
       } catch (e) {}
     }
     if (oldVersion < 9) {
-      // Add confidence and raw_scores columns to existing history table
+
       try {
         await db.execute('ALTER TABLE cry_history ADD COLUMN confidence TEXT');
         await db.execute('ALTER TABLE cry_history ADD COLUMN raw_scores TEXT');
       } catch (e) {}
-      // Ensure mock data is inserted during version upgrade
+
       await _insertMockData(db);
     }
   }
@@ -208,7 +208,7 @@ class DatabaseHelper {
     );
   }
 
-  // Methods for cry_history table
+
   Future<int> insertCryRecord(Map<String, dynamic> row) async {
     final db = await instance.database;
     return await db.insert('cry_history', row);
