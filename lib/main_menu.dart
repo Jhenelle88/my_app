@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
@@ -39,7 +38,7 @@ class _MainMenuState extends State<MainMenu> {
   // --- STATE FOR RASPBERRY PI CONNECTION ---
   String _serverUrl = '';
   bool _isLoading = false;
-  String _prediction = 'Waiting for input...'; 
+  String _prediction = 'Waiting for input...';
   String _confidence = '';
   String _matchedFile = '';
   String _errorMessage = '';
@@ -272,7 +271,7 @@ class _MainMenuState extends State<MainMenu> {
             _detectedImagePath = 'assets/NON CRY.png';
             _isLoading = false;
           });
-          
+
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -365,7 +364,7 @@ class _MainMenuState extends State<MainMenu> {
   }
 
   void _showNetworkErrorDialog(String title, String content, BuildContext context) {
-     showDialog(
+    showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -465,17 +464,6 @@ class _MainMenuState extends State<MainMenu> {
                   ),
                 ],
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.science_outlined, color: Colors.lightBlue),
-              title: const Text('Cry Behavior (Testing)'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => CryBehaviorTestingPage(userId: _user['id'])),
-                ).then((_) => _refreshCryCounts());
-              },
             ),
             ListTile(
               leading: const Icon(Icons.history, color: Colors.lightBlue),
@@ -583,7 +571,7 @@ class _MainMenuState extends State<MainMenu> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       color: Colors.red[100],
       child: ExpansionTile(
-        leading: _detectedImagePath != null 
+        leading: _detectedImagePath != null
             ? Image.asset(_detectedImagePath!, height: 40)
             : Icon(Icons.notifications_active, color: Colors.red[800], size: 32.0),
         title: Text(
@@ -676,7 +664,7 @@ class _MainMenuState extends State<MainMenu> {
                             borderRadius: BorderRadius.circular(12.0)),
                         padding: const EdgeInsets.symmetric(vertical: 10.0),
                       ),
-                      onPressed: _startMicAnalysis, 
+                      onPressed: _startMicAnalysis,
                       icon: const Icon(Icons.mic, color: Colors.white, size: 18),
                       label: const Text('Trigger Mic',
                           style: TextStyle(color: Colors.white, fontSize: 13)),
@@ -689,9 +677,9 @@ class _MainMenuState extends State<MainMenu> {
                         backgroundColor: Colors.green,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.0)),
-                        padding: const EdgeInsets.symmetric(vertical: 10.0),
+                        padding: const EdgeInsets.symmetric( vertical: 10.0),
                       ),
-                      onPressed: _startFileAnalysis, 
+                      onPressed: _startFileAnalysis,
                       icon: const Icon(Icons.upload_file, color: Colors.white, size: 18),
                       label: const Text('Upload File',
                           style: TextStyle(color: Colors.white, fontSize: 13)),
