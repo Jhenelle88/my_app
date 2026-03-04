@@ -116,7 +116,7 @@ class _MainMenuState extends State<MainMenu> {
 
     setState(() {
       _isLoading = true;
-      _prediction = "Pi is recording for 4 seconds...";
+      _prediction = "Pi is recording for 8 seconds...";
       _confidence = "";
       _matchedFile = "";
       _rawScores = "";
@@ -764,7 +764,7 @@ class _MainMenuState extends State<MainMenu> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.arrow_right),
-                  onPressed: () => _changeDate(1), 
+                  onPressed: () => _changeDate(1),
                 ),
               ],
             ),
