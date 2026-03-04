@@ -15,7 +15,7 @@ class SplashScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               Image.asset(
-                'assets/trans.png', // Using the provided logo
+                'assets/trans.png',
                 height: 200,
               ),
               const SizedBox(height: 32),
@@ -25,7 +25,7 @@ class SplashScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF03A9F4), // Light Blue
+                  color: Color(0xFF03A9F4),
                 ),
               ),
               const SizedBox(height: 16),
@@ -40,7 +40,7 @@ class SplashScreen extends StatelessWidget {
               const SizedBox(height: 60),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF03A9F4), // Light Blue
+                  backgroundColor: const Color(0xFF03A9F4),
                   padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
                   textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   shape: RoundedRectangleBorder(
@@ -52,7 +52,7 @@ class SplashScreen extends StatelessWidget {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (context) => MainMenu(user: const {
-                        'id': 1, // Dummy user ID
+                        'id': 1,
                         'fullName': 'User',
                         'email': 'user@example.com',
                         'imagePath': null,

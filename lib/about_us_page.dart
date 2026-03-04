@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 class AboutUsPage extends StatelessWidget {
@@ -40,7 +39,7 @@ class AboutUsPage extends StatelessWidget {
                 child: Column(
                   children: [
                     Image.asset(
-                      'assets/LOGO.png', // Replace with your actual logo path
+                      'assets/LOGO.png',
                       height: 100,
                       errorBuilder: (context, error, stackTrace) {
                         return Icon(
