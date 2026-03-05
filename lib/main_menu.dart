@@ -77,7 +77,7 @@ class _MainMenuState extends State<MainMenu> {
       final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       socket.broadcastEnabled = true;
       final broadcastAddr = InternetAddress('255.255.255.255');
-      socket.send(utf8.encode('CRYCOM_DISCOVER'), broadcastAddr, 5001);
+      socket.send(utf8.encode('CRYCOM_DISCOVER'), broadcastAddr, 5006);
 
       await for (RawSocketEvent event
       in socket.timeout(const Duration(seconds: 3))) {
@@ -87,7 +87,7 @@ class _MainMenuState extends State<MainMenu> {
             final message = utf8.decode(dg.data);
             if (message == 'CRYCOM_SERVER') {
               String discoveredIp = dg.address.address;
-              _serverUrl = 'http://$discoveredIp:5002';
+              _serverUrl = 'http://$discoveredIp:5005';
               print('✅ Found Raspberry Pi at: $_serverUrl');
               socket.close();
               return true;

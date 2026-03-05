@@ -73,7 +73,7 @@ class _CryReasonDetailsPageState extends State<CryReasonDetailsPage> {
       case 'Hunger':
         return 'Baby is Hungry!';
       case 'Pain':
-        return 'Baby has Abdominal Pain!';
+        return 'Baby is in Pain!';
       case 'Discomfort':
         return 'Baby is in Discomfort!';
       case 'Non Cry':
